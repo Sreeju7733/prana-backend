@@ -1,0 +1,96 @@
+import { NextRequest, NextResponse } from 'next/server';
+import { createClient } from '@supabase/supabase-js';
+import jwt from 'jsonwebtoken';
+
+const supabase = createClient(
+    process.env.NEXT_PUBLIC_SUPABASE_URL!,
+    process.env.SUPABASE_SERVICE_ROLE_KEY!
+);
+
+const JWT_SECRET = process.env.JWT_SECRET || 'your-secret-key';
+
+export async function POST(req: NextRequest) {
+    try {
+        const { phone, otp } = await req.json();
+
+        // Validate inputs
+        if (!phone || !otp) {
+            return NextResponse.json({ error: 'Phone and OTP required' }, { status: 400 });
+        }
+
+        // Verify OTP from database
+        const { data: otpRecord, error } = await supabase
+            .from('otp_logs')
+            .select('*')
+            .eq('phone', phone)
+            .eq('otp_code', otp)
+            .eq('is_used', false)
+            .gt('expires_at', new Date().toISOString())
+            .order('created_at', { ascending: false })
+            .limit(1)
+            .single();
+
+        if (error || !otpRecord) {
+            return NextResponse.json({ error: 'Invalid or expired OTP' }, { status: 401 });
+        }
+
+        // Mark OTP as used
+        await supabase
+            .from('otp_logs')
+            .update({ is_used: true })
+            .eq('id', otpRecord.id);
+
+        // Find or create user in profiles
+        let { data: profile, error: profileError } = await supabase
+            .from('profiles')
+            .select('*')
+            .eq('phone', phone)
+            .single();
+
+        if (profileError && profileError.code === 'PGRST116') {
+            // User doesn't exist, create new profile
+            const { data: newProfile, error: createError } = await supabase
+                .from('profiles')
+                .insert({
+                    phone: phone,
+                    full_name: 'New User', // User can update later
+                })
+                .select()
+                .single();
+
+            if (createError) {
+                throw createError;
+            }
+            profile = newProfile;
+        }
+
+        // Generate JWT
+        const token = jwt.sign(
+            { 
+                id: profile.id, 
+                phone: profile.phone,
+                prana_id: profile.prana_id 
+            },
+            JWT_SECRET,
+            { expiresIn: '7d' }
+        );
+
+        // Return user data + token
+        return NextResponse.json({
+            success: true,
+            token,
+            user: {
+                id: profile.id,
+                phone: profile.phone,
+                full_name: profile.full_name,
+                prana_id: profile.prana_id,
+                blood_group: profile.blood_group,
+                card_status: profile.card_status,
+            }
+        });
+
+    } catch (error) {
+        console.error('Verify OTP error:', error);
+        return NextResponse.json({ error: 'Failed to verify OTP' }, { status: 500 });
+    }
+}
