@@ -49,12 +49,32 @@ export async function POST(req: NextRequest) {
             .single();
 
         if (profileError && profileError.code === 'PGRST116') {
-            // User doesn't exist in profiles table -> create new profile
+            // User doesn't exist in profiles table -> create auth user first
             isNewUser = true;
+
+            // Create Supabase Auth user via admin API to get valid auth.users ID
+            const { data: authUserData, error: authError } = await supabase.auth.admin.createUser({
+                phone: phone,
+                phone_confirm: true,
+            });
+
+            let userId = authUserData?.user?.id;
+
+            if (authError || !userId) {
+                // If user already exists in auth.users but not in profiles
+                const { data: existingUsers } = await supabase.auth.admin.listUsers();
+                const foundUser = existingUsers?.users?.find(u => u.phone === phone);
+                if (foundUser) {
+                    userId = foundUser.id;
+                } else {
+                    throw authError || new Error('Failed to create auth user');
+                }
+            }
+
             const { data: newProfile, error: createError } = await supabase
                 .from('profiles')
                 .insert({
-                    id: crypto.randomUUID(),
+                    id: userId,
                     phone: phone,
                     full_name: '', // Empty initially for new onboarding flow
                 })
