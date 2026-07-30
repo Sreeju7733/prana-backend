@@ -41,6 +41,7 @@ export async function POST(req: NextRequest) {
             .eq('id', otpRecord.id);
 
         // Find or create user in profiles
+        let isNewUser = false;
         let { data: profile, error: profileError } = await supabase
             .from('profiles')
             .select('*')
@@ -48,12 +49,13 @@ export async function POST(req: NextRequest) {
             .single();
 
         if (profileError && profileError.code === 'PGRST116') {
-            // User doesn't exist, create new profile
+            // User doesn't exist in profiles table -> create new profile
+            isNewUser = true;
             const { data: newProfile, error: createError } = await supabase
                 .from('profiles')
                 .insert({
                     phone: phone,
-                    full_name: 'New User', // User can update later
+                    full_name: '', // Empty initially for new onboarding flow
                 })
                 .select()
                 .single();
@@ -62,6 +64,9 @@ export async function POST(req: NextRequest) {
                 throw createError;
             }
             profile = newProfile;
+        } else if (profile && (!profile.full_name || profile.full_name === 'New User')) {
+            // User profile exists but onboarding hasn't been completed yet
+            isNewUser = true;
         }
 
         // Generate JWT
@@ -75,10 +80,11 @@ export async function POST(req: NextRequest) {
             { expiresIn: '7d' }
         );
 
-        // Return user data + token
+        // Return user data + token + is_new_user flag
         return NextResponse.json({
             success: true,
             token,
+            is_new_user: isNewUser,
             user: {
                 id: profile.id,
                 phone: profile.phone,
