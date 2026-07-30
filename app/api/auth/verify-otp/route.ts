@@ -54,6 +54,7 @@ export async function POST(req: NextRequest) {
             const { data: newProfile, error: createError } = await supabase
                 .from('profiles')
                 .insert({
+                    id: crypto.randomUUID(),
                     phone: phone,
                     full_name: '', // Empty initially for new onboarding flow
                 })
