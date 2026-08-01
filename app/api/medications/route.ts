@@ -32,14 +32,9 @@ export async function POST(req: NextRequest) {
         if (!body.name || typeof body.name !== 'string' || body.name.trim() === '') {
             return NextResponse.json({ success: false, error: 'name is required' }, { status: 400 });
         }
-        if (!body.dose || typeof body.dose !== 'string' || body.dose.trim() === '') {
-            return NextResponse.json({ success: false, error: 'dose is required (e.g. 500mg)' }, { status: 400 });
-        }
-        if (!body.frequency || typeof body.frequency !== 'string' || body.frequency.trim() === '') {
-            return NextResponse.json({ success: false, error: 'frequency is required (e.g. BD, OD, TDS)' }, { status: 400 });
-        }
 
-        const doseString = body.dose || (body.dose_value && body.dose_unit ? `${body.dose_value} ${body.dose_unit}` : body.dose_value || '');
+        const doseString = body.dose || (body.dose_value && body.dose_unit ? `${body.dose_value} ${body.dose_unit}` : body.dose_value || body.dose_unit || 'As prescribed');
+        const frequencyString = body.frequency || 'Daily';
 
         const newRecord = {
             user_id: user.id,
@@ -48,19 +43,37 @@ export async function POST(req: NextRequest) {
             dose: doseString.trim(),
             dose_value: body.dose_value ? String(body.dose_value).trim() : null,
             dose_unit: body.dose_unit ? String(body.dose_unit).trim() : null,
-            frequency: body.frequency.trim(),
+            frequency: frequencyString.trim(),
             reason: body.reason ? String(body.reason).trim() : null,
             prescribed_by: body.prescribed_by || null,
             prescribed_date: body.prescribed_date || null,
-            is_active: body.is_active !== undefined ? Boolean(body.is_active) : true,
+            is_active: true,
             encrypted_prescription_url: body.encrypted_prescription_url || null
         };
 
-        const { data, error } = await supabase
+        let { data, error } = await supabase
             .from('medications')
             .insert([newRecord])
             .select()
             .single();
+
+        if (error && (error.message.includes('column') || error.code === 'PGRST204' || error.code === '42703')) {
+            // Fallback for older table schema without extra columns
+            const fallbackRecord = {
+                user_id: user.id,
+                name: body.name.trim(),
+                dose: doseString.trim(),
+                frequency: frequencyString.trim(),
+                is_active: true,
+            };
+            const fallbackResult = await supabase
+                .from('medications')
+                .insert([fallbackRecord])
+                .select()
+                .single();
+            data = fallbackResult.data;
+            error = fallbackResult.error;
+        }
 
         if (error) {
             return NextResponse.json({ success: false, error: error.message }, { status: 500 });

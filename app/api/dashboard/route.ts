@@ -14,7 +14,7 @@ export async function GET(req: NextRequest) {
         // 1. Fetch Profile
         const { data: profile, error: profileError } = await supabase
             .from('profiles')
-            .select('full_name, prana_id, card_status, blood_group')
+            .select('full_name, prana_id, card_status, blood_group, date_of_birth')
             .eq('id', user.id)
             .single();
 
@@ -99,6 +99,7 @@ export async function GET(req: NextRequest) {
                 prana_id: profile.prana_id,
                 card_status: profile.card_status,
                 blood_group: profile.blood_group || null,
+                date_of_birth: profile.date_of_birth || null,
                 profile_completion_pct: completionPoints,
                 missing_sections
             },
