@@ -54,8 +54,10 @@ export async function PUT(req: NextRequest) {
         const updates = await req.json();
 
         // Update profile (whitelist allowed fields)
-        const allowedUpdates = ['full_name', 'blood_group', 'weight_kg', 'height_cm'];
-        const filteredUpdates: Record<string, unknown> = {};
+        const allowedUpdates = ['full_name', 'gender', 'date_of_birth', 'blood_group', 'weight_kg', 'height_cm'];
+        const filteredUpdates: Record<string, unknown> = {
+            updated_at: new Date().toISOString()
+        };
         
         for (const key of allowedUpdates) {
             if (updates[key] !== undefined) {
@@ -80,4 +82,8 @@ export async function PUT(req: NextRequest) {
         const message = error instanceof Error ? error.message : 'Unauthorized access';
         return NextResponse.json({ error: message }, { status: 401 });
     }
+}
+
+export async function OPTIONS() {
+    return NextResponse.json({}, { status: 200 });
 }
