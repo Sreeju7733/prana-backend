@@ -1,6 +1,7 @@
 import { NextRequest, NextResponse } from 'next/server';
 import { createClient } from '@supabase/supabase-js';
 import jwt from 'jsonwebtoken';
+import { verifyInMemoryOtp } from '@/lib/otpStore';
 
 const supabase = createClient(
     process.env.NEXT_PUBLIC_SUPABASE_URL!,
@@ -18,27 +19,39 @@ export async function POST(req: NextRequest) {
             return NextResponse.json({ error: 'Phone and OTP required' }, { status: 400 });
         }
 
-        // Verify OTP from database
-        const { data: otpRecord, error } = await supabase
-            .from('otp_logs')
-            .select('*')
-            .eq('phone', phone)
-            .eq('otp_code', otp)
-            .eq('is_used', false)
-            .gt('expires_at', new Date().toISOString())
-            .order('created_at', { ascending: false })
-            .limit(1)
-            .single();
+        const cleanPhone = String(phone).trim();
+        const cleanOtp = String(otp).trim();
 
-        if (error || !otpRecord) {
-            return NextResponse.json({ error: 'Invalid or expired OTP' }, { status: 401 });
+        // 1. Check in-memory store
+        const memResult = verifyInMemoryOtp(cleanPhone, cleanOtp);
+        let isValidOtp = memResult.valid;
+
+        if (!isValidOtp) {
+            // 2. Fallback to Supabase database lookup
+            const { data: otpRecords } = await supabase
+                .from('otp_logs')
+                .select('*')
+                .eq('phone', cleanPhone)
+                .eq('otp_code', cleanOtp)
+                .order('created_at', { ascending: false });
+
+            const otpRecord = otpRecords && otpRecords.length > 0 ? otpRecords[0] : null;
+            if (otpRecord && !otpRecord.is_used) {
+                const expiresAtMs = new Date(otpRecord.expires_at).getTime();
+                if (isNaN(expiresAtMs) || expiresAtMs >= Date.now()) {
+                    isValidOtp = true;
+                    await supabase
+                        .from('otp_logs')
+                        .update({ is_used: true })
+                        .eq('id', otpRecord.id);
+                }
+            }
         }
 
-        // Mark OTP as used
-        await supabase
-            .from('otp_logs')
-            .update({ is_used: true })
-            .eq('id', otpRecord.id);
+        if (!isValidOtp) {
+            console.error('OTP verification failed for phone:', cleanPhone, 'otp:', cleanOtp, 'reason:', memResult.reason);
+            return NextResponse.json({ error: 'Invalid or expired OTP' }, { status: 401 });
+        }
 
         // Find or create user in profiles
         let isNewUser = false;

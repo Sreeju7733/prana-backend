@@ -1,0 +1,129 @@
+import { NextRequest, NextResponse } from 'next/server';
+import { supabase, verifyToken } from '@/lib/auth';
+
+// Helper for standard response wrapping
+function jsonResponse(data: unknown = null, error: unknown = null, status = 200) {
+    return NextResponse.json({ data, error }, { status });
+}
+
+// GET /api/dashboard - Hydrate complete dashboard home screen in one round trip
+export async function GET(req: NextRequest) {
+    try {
+        const user = verifyToken(req);
+
+        // 1. Fetch Profile
+        const { data: profile, error: profileError } = await supabase
+            .from('profiles')
+            .select('full_name, prana_id, card_status, blood_group')
+            .eq('id', user.id)
+            .single();
+
+        if (profileError || !profile) {
+            return jsonResponse(null, { code: 'profile_not_found', message: 'User profile not found' }, 404);
+        }
+
+        // 2. Fetch Counts & Critical Allergy
+        const [{ count: medsCount }, { count: allergiesCount }, { count: conditionsCount }, { data: criticalAllergies }] = await Promise.all([
+            supabase.from('medications').select('*', { count: 'exact', head: true }).eq('user_id', user.id).eq('is_active', true),
+            supabase.from('allergies').select('*', { count: 'exact', head: true }).eq('user_id', user.id),
+            supabase.from('conditions').select('*', { count: 'exact', head: true }).eq('user_id', user.id).eq('status', 'active'),
+            supabase.from('allergies').select('allergen, severity').eq('user_id', user.id).eq('is_critical', true).limit(1)
+        ]);
+
+        const critical_allergy = (criticalAllergies && criticalAllergies.length > 0)
+            ? { allergen: criticalAllergies[0].allergen, severity: criticalAllergies[0].severity }
+            : null;
+
+        // Calculate missing sections
+        const missing_sections: string[] = [];
+        if (!medsCount) missing_sections.push('medications');
+        if (!allergiesCount) missing_sections.push('allergies');
+        if (!conditionsCount) missing_sections.push('conditions');
+
+        // Calculate profile completion percentage
+        let completionPoints = 20; // Base prana_id + phone
+        if (profile.full_name) completionPoints += 20;
+        if (profile.blood_group) completionPoints += 20;
+        if (medsCount && medsCount > 0) completionPoints += 15;
+        if (allergiesCount && allergiesCount > 0) completionPoints += 15;
+        if (conditionsCount && conditionsCount > 0) completionPoints += 10;
+
+        // 3. Fetch Briefing
+        let briefingData = null;
+        try {
+            const { data: briefingRecord } = await supabase
+                .from('medical_briefings')
+                .select('*')
+                .eq('user_id', user.id)
+                .order('created_at', { ascending: false })
+                .limit(1)
+                .maybeSingle();
+
+            if (briefingRecord) {
+                const isExpired = briefingRecord.expires_at ? new Date(briefingRecord.expires_at) < new Date() : false;
+                const bullets = [
+                    briefingRecord.green_briefing,
+                    briefingRecord.yellow_briefing
+                ].filter(Boolean);
+
+                briefingData = {
+                    text: briefingRecord.green_briefing || briefingRecord.yellow_briefing || 'Emergency health summary available.',
+                    bullets: bullets.length > 0 ? bullets : ['Health record registered.'],
+                    generated_at: briefingRecord.generated_at || briefingRecord.created_at,
+                    is_stale: isExpired
+                };
+            }
+        } catch {
+            briefingData = { error: 'generation_unavailable' };
+        }
+
+        // 4. Fetch Recent Scans (Limit 5)
+        const { data: scanLogs } = await supabase
+            .from('scan_logs')
+            .select('access_tier, scanned_at, access_granted, responder_code')
+            .eq('prana_id', profile.prana_id)
+            .order('scanned_at', { ascending: false })
+            .limit(5);
+
+        const recent_scans = (scanLogs || []).map(scan => ({
+            access_tier: scan.access_tier || 'green',
+            scanned_at: scan.scanned_at,
+            location_city: 'Delhi',
+            responder_org: scan.responder_code ? `Responder (${scan.responder_code})` : 'Public Scanner',
+            access_granted: scan.access_granted ?? true
+        }));
+
+        const responsePayload: Record<string, unknown> = {
+            profile: {
+                full_name: profile.full_name || 'User',
+                prana_id: profile.prana_id,
+                card_status: profile.card_status,
+                blood_group: profile.blood_group || null,
+                profile_completion_pct: completionPoints,
+                missing_sections
+            },
+            health_summary: {
+                critical_allergy,
+                meds_count: medsCount || 0,
+                allergies_count: allergiesCount || 0,
+                conditions_count: conditionsCount || 0
+            },
+            briefing: briefingData,
+            recent_scans
+        };
+
+        if (profile.card_status === 'suspended') {
+            responsePayload.card_suspended_reason = 'Card temporarily suspended by user for privacy/security.';
+        }
+
+        return jsonResponse(responsePayload, null, 200);
+
+    } catch (error: unknown) {
+        const message = error instanceof Error ? error.message : 'Unauthorized access';
+        return jsonResponse(null, { code: 'unauthorized', message }, 401);
+    }
+}
+
+export async function OPTIONS() {
+    return NextResponse.json({}, { status: 200 });
+}

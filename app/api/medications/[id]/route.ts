@@ -30,7 +30,7 @@ export async function PATCH(
             updated_at: new Date().toISOString()
         };
 
-        const allowedFields = ['name', 'generic_name', 'dose', 'frequency', 'prescribed_by', 'prescribed_date', 'is_active', 'encrypted_prescription_url'];
+        const allowedFields = ['name', 'generic_name', 'dose', 'dose_value', 'dose_unit', 'frequency', 'reason', 'prescribed_by', 'prescribed_date', 'is_active', 'encrypted_prescription_url'];
         for (const field of allowedFields) {
             if (body[field] !== undefined) {
                 updates[field] = body[field];

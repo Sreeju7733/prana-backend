@@ -34,34 +34,48 @@ export async function POST(req: NextRequest) {
 
         // Validation
         if (!body.allergen || typeof body.allergen !== 'string' || body.allergen.trim() === '') {
-            return NextResponse.json({ success: false, error: 'allergen is required and must be a non-empty string' }, { status: 400 });
+            return NextResponse.json({ data: null, error: { code: 'validation_failed', message: 'allergen is required and must be a non-empty string' } }, { status: 400 });
         }
 
         if (body.allergen.length > 255) {
-            return NextResponse.json({ success: false, error: 'allergen cannot exceed 255 characters' }, { status: 400 });
+            return NextResponse.json({ data: null, error: { code: 'validation_failed', message: 'allergen cannot exceed 255 characters' } }, { status: 400 });
         }
 
         if (body.severity !== undefined && body.severity !== null && !ALLOWED_SEVERITIES.includes(body.severity)) {
-            return NextResponse.json({ success: false, error: `severity must be one of: ${ALLOWED_SEVERITIES.join(', ')}` }, { status: 400 });
+            return NextResponse.json({ data: null, error: { code: 'validation_failed', message: `severity must be one of: ${ALLOWED_SEVERITIES.join(', ')}` } }, { status: 400 });
+        }
+
+        const allergenClean = body.allergen.trim();
+
+        // Duplicate Check (409 Conflict)
+        const { data: existingAllergy } = await supabase
+            .from('allergies')
+            .select('id, allergen')
+            .eq('user_id', user.id)
+            .ilike('allergen', allergenClean)
+            .maybeSingle();
+
+        if (existingAllergy) {
+            return NextResponse.json({
+                data: null,
+                error: {
+                    code: 'duplicate_entry',
+                    message: `Allergy '${allergenClean}' already exists. Please update the existing record instead of creating a duplicate.`,
+                    existing_id: existingAllergy.id
+                }
+            }, { status: 409 });
         }
 
         if (body.date_diagnosed) {
             const dateRegex = /^\d{4}-\d{2}-\d{2}$/;
             if (!dateRegex.test(body.date_diagnosed) || isNaN(Date.parse(body.date_diagnosed))) {
-                return NextResponse.json({ success: false, error: 'date_diagnosed must be a valid ISO date (YYYY-MM-DD)' }, { status: 400 });
-            }
-
-            const diagnosedDate = new Date(body.date_diagnosed);
-            const today = new Date();
-            today.setHours(23, 59, 59, 999);
-            if (diagnosedDate > today) {
-                return NextResponse.json({ success: false, error: 'date_diagnosed cannot be in the future' }, { status: 400 });
+                return NextResponse.json({ data: null, error: { code: 'validation_failed', message: 'date_diagnosed must be a valid ISO date (YYYY-MM-DD)' } }, { status: 400 });
             }
         }
 
         const newRecord = {
-            user_id: user.id, // Extract from secure JWT token, ignore body user_id
-            allergen: body.allergen.trim(),
+            user_id: user.id,
+            allergen: allergenClean,
             severity: body.severity || null,
             reaction_description: body.reaction_description || null,
             date_diagnosed: body.date_diagnosed || null,
@@ -75,18 +89,14 @@ export async function POST(req: NextRequest) {
             .single();
 
         if (error) {
-            return NextResponse.json({ success: false, error: error.message }, { status: 500 });
+            return NextResponse.json({ data: null, error: { code: 'insert_failed', message: error.message } }, { status: 500 });
         }
 
-        return NextResponse.json({
-            success: true,
-            message: 'Allergy record created successfully',
-            data
-        }, { status: 201 });
+        return NextResponse.json({ data, error: null }, { status: 201 });
 
     } catch (error: unknown) {
         const message = error instanceof Error ? error.message : 'Unauthorized access';
-        return NextResponse.json({ success: false, error: message }, { status: 401 });
+        return NextResponse.json({ data: null, error: { code: 'unauthorized', message } }, { status: 401 });
     }
 }
 

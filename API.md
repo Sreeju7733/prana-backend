@@ -1,396 +1,280 @@
-# Prana Backend Complete API Documentation
+# Prana Backend API Documentation
 
-Base URL: `http://<HOST>:3000` (e.g. `http://localhost:3000`)
+Base URL: `https://api.prana.emergency/v1` (or local: `http://localhost:3000`)
 
----
+### Base Configuration
+- **Auth Header:** `Authorization: Bearer <supabase_jwt>` on all protected endpoints.
+- **Response Format:** Standard payload wrapper:
+  - **Success:** `{ "data": ..., "error": null }`
+  - **Failure:** `{ "data": null, "error": { "code": "...", "message": "..." } }`
 
-## 🔑 1. Authentication & Onboarding Flow
+## 🔑 Auth & OTP Flow
 
-### 1.1 Send OTP
-Generates a 6-digit OTP and logs it to `otp_logs`.
-
+### Send OTP (`POST /api/auth/send-otp`)
 - **Endpoint:** `POST /api/auth/send-otp`
-- **Headers:** `Content-Type: application/json`
-- **Request Body:**
-```json
-{
-  "phone": "9876543210"
-}
-```
-- **Response (200 OK):**
-```json
-{
-  "success": true,
-  "message": "OTP sent successfully",
-  "otp": "791963"
-}
-```
+- **Request Body:** `{ "phone": "9876543210" }`
 
 ---
 
-### 1.2 Verify OTP
-Verifies the OTP, creates an `auth.users` record and a `profiles` entry if the user is new, and returns a JWT token.
+### Resend OTP (`POST /api/auth/resend-otp`)
+- **Endpoint:** `POST /api/auth/resend-otp`
+- **Request Body:** `{ "phone": "9876543210" }`
+- **Rate Limit:** 60-second cooldown between resends per phone number.
+- **Responses:**
+  - **200 OK (Success):**
+    ```json
+    {
+      "data": {
+        "message": "OTP resent successfully",
+        "phone": "9876543210",
+        "cooldown_seconds": 60,
+        "otp": "791963"
+      },
+      "error": null
+    }
+    ```
+  - **429 Rate Limited (Cooldown active):**
+    ```json
+    {
+      "data": null,
+      "error": {
+        "code": "rate_limited",
+        "message": "Please wait 45 seconds before requesting another OTP.",
+        "retry_after_seconds": 45
+      }
+    }
+    ```
 
-- **Endpoint:** `POST /api/auth/verify-otp`
-- **Headers:** `Content-Type: application/json`
-- **Request Body:**
+---
+
+## 🚀 1. Dashboard Hydration Endpoint (`GET /api/dashboard`)
+
+The single call that hydrates the entire home screen in one round trip.
+
+- **Endpoint:** `GET /api/dashboard`
+- **Headers:** `Authorization: Bearer <JWT_TOKEN>`
+- **Response (200 OK):**
+
 ```json
 {
-  "phone": "9876543210",
-  "otp": "791963"
+  "data": {
+    "profile": {
+      "full_name": "Sreeju",
+      "prana_id": "PRAN-2973CAC1",
+      "card_status": "active",
+      "blood_group": "B+",
+      "profile_completion_pct": 80,
+      "missing_sections": ["conditions"]
+    },
+    "health_summary": {
+      "critical_allergy": {
+        "allergen": "Penicillin",
+        "severity": "life_threatening"
+      },
+      "meds_count": 2,
+      "allergies_count": 1,
+      "conditions_count": 0
+    },
+    "briefing": {
+      "text": "Patient: Sreeju. Blood Group: B+. Allergies: Penicillin (life_threatening).",
+      "bullets": [
+        "Patient: Sreeju. Blood Group: B+. Allergies: Penicillin (life_threatening).",
+        "Active Medications: Metformin 500mg BD. Emergency contact relay active."
+      ],
+      "generated_at": "2026-08-01T14:32:00Z",
+      "is_stale": false
+    },
+    "recent_scans": [
+      {
+        "access_tier": "yellow",
+        "scanned_at": "2026-07-30T18:45:00Z",
+        "location_city": "Delhi",
+        "responder_org": "Responder (108 Delhi)",
+        "access_granted": true
+      }
+    ]
+  },
+  "error": null
 }
 ```
-- **Response (200 OK):**
+
+### Edge Cases Handled:
+- **Brand new user**: `health_summary` counts return `0`, `critical_allergy: null`, `missing_sections` lists empty tables to drive the completion prompt.
+- **Briefing never generated**: Returns `briefing: null` so UI presents the "Generate your first briefing" CTA.
+- **Briefing expired**: Returns `is_stale: true` when `expires_at` has passed.
+- **Suspended card**: Includes `card_suspended_reason` field so UI renders a prominent red alert banner.
+- **Empty scan history**: Returns `recent_scans: []`.
+- **Missing blood group**: Returns `blood_group: null` to prompt critical data entry.
+- **LLM / Briefing service down**: Returns `briefing: { "error": "generation_unavailable" }` without breaking profile or health summary hydration.
+
+---
+
+## 🔄 2. Regenerate AI Briefing (`POST /api/briefing/regenerate`)
+
+Triggered by the manual refresh icon on the briefing card.
+
+- **Endpoint:** `POST /api/briefing/regenerate`
+- **Headers:** `Authorization: Bearer <JWT_TOKEN>`
+- **Request Body:** `{}` (empty object)
+
+### Responses & Edge Cases:
+
+- **200 OK (Success):**
 ```json
 {
-  "success": true,
-  "token": "eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9...",
-  "is_new_user": true,
-  "user": {
-    "id": "1f0dcda7-40cf-48f5-85a1-b840658db432",
-    "phone": "9876543210",
-    "full_name": "",
-    "prana_id": "PRAN-2cd7b33f",
-    "blood_group": null,
-    "card_status": "active"
+  "data": {
+    "text": "Patient: Sreeju. Blood Group: B+. Allergies: Penicillin (life_threatening).",
+    "bullets": [
+      "Patient: Sreeju. Blood Group: B+. Allergies: Penicillin (life_threatening)."
+    ],
+    "generated_at": "2026-08-01T15:30:00Z",
+    "is_stale": false
+  },
+  "error": null
+}
+```
+
+- **429 Rate Limited (Max 1 regen per 5 minutes):**
+```json
+{
+  "data": null,
+  "error": {
+    "code": "rate_limited",
+    "message": "Rate limit exceeded. Please wait 240 seconds.",
+    "retry_after_seconds": 240
   }
 }
 ```
 
+- **422 Insufficient Health Data:**
+```json
+{
+  "data": null,
+  "error": {
+    "code": "insufficient_data",
+    "message": "Add at least one condition, allergy, or medication first"
+  }
+}
+```
+
+- **503 LLM Failure:** Keeps serving cached briefing while returning 503 error code without overwriting valid data.
+
 ---
 
-## 👤 2. Patient Profile APIs
+## 🏥 3. Health Tab Independent Summary (`GET /api/health/summary`)
 
-### 2.1 Get Patient Profile
-Fetches current logged-in user profile using JWT token.
-
-- **Endpoint:** `GET /api/patient/profile`
+- **Endpoint:** `GET /api/health/summary`
 - **Headers:** `Authorization: Bearer <JWT_TOKEN>`
 - **Response (200 OK):**
 ```json
 {
-  "success": true,
   "data": {
-    "id": "1f0dcda7-40cf-48f5-85a1-b840658db432",
-    "phone": "9876543210",
-    "full_name": "John Doe",
-    "prana_id": "PRAN-2cd7b33f",
-    "date_of_birth": "1995-05-15",
-    "blood_group": "O+",
-    "gender": "M",
-    "weight_kg": 70,
-    "height_cm": 175,
-    "emergency_relay_number": "1800-PRANA-RELAY-2669",
-    "card_status": "active",
-    "daily_scan_limit": 10,
-    "allowed_countries": ["IN"],
-    "created_at": "2026-07-30T07:04:44.926095+00:00",
-    "updated_at": "2026-07-30T07:04:44.926095+00:00"
+    "allergies": [
+      {
+        "id": "c39a8c12-3456-4921-8208-111111111111",
+        "allergen": "Penicillin",
+        "severity": "life_threatening",
+        "is_critical": true
+      }
+    ],
+    "medications": [
+      {
+        "id": "m1111111-2222-3333-4444-555555555555",
+        "name": "Metformin",
+        "dose": "500mg",
+        "frequency": "BD",
+        "is_active": true
+      }
+    ],
+    "conditions": [
+      {
+        "id": "cond-101-uuid",
+        "name": "Type 2 Diabetes",
+        "status": "chronic",
+        "diagnosed_date": "2019-06-01"
+      }
+    ]
+  },
+  "error": null
+}
+```
+*Note: Evaluates via independent queries / LEFT JOINs so empty tables return `[]` without dropping user profile data.*
+
+---
+
+## ➕ 4. Record Mutations & Duplicate Guards (`POST /api/allergies`, `POST /api/medications`, `POST /api/conditions`)
+
+### Duplicate Conflict Handling (`409 Conflict`):
+When adding an entry that already exists (e.g. adding `"Penicillin"` when Penicillin is already recorded):
+```json
+{
+  "data": null,
+  "error": {
+    "code": "duplicate_entry",
+    "message": "Allergy 'Penicillin' already exists. Please update the existing record instead of creating a duplicate.",
+    "existing_id": "c39a8c12-3456-4921-8208-111111111111"
   }
 }
 ```
 
+### Auto Briefing Invalidation:
+Setting `is_critical: true` on an allergy triggers `trigger_briefing_update` to set `expires_at = NOW()` on cached briefings.
+
 ---
 
-### 2.2 Setup / Update Profile
-Updates user profile during onboarding (profile setup) or settings edit.
+## 🔒 5. Card Suspension & Reactivation (`POST /api/card/suspend`, `POST /api/card/reactivate`)
 
-- **Endpoint:** `PUT /api/patient/profile`
-- **Headers:**
-  - `Content-Type: application/json`
-  - `Authorization: Bearer <JWT_TOKEN>`
-- **Request Body (All fields optional):**
-```json
-{
-  "full_name": "John Doe",
-  "gender": "M",
-  "date_of_birth": "1995-05-15",
-  "blood_group": "O+",
-  "weight_kg": 72,
-  "height_cm": 178
-}
-```
+### Suspend Card (`POST /api/card/suspend`)
+- **Request Body:** `{ "reason": "lost" }`
 - **Response (200 OK):**
 ```json
 {
-  "success": true,
   "data": {
-    "id": "1f0dcda7-40cf-48f5-85a1-b840658db432",
-    "phone": "9876543210",
-    "full_name": "John Doe",
-    "gender": "M",
-    "date_of_birth": "1995-05-15",
-    "blood_group": "O+",
-    "weight_kg": 72,
-    "height_cm": 178,
-    "prana_id": "PRAN-2cd7b33f",
-    "card_status": "active"
-  }
+    "prana_id": "PRAN-2973CAC1",
+    "card_status": "suspended",
+    "reason": "lost"
+  },
+  "error": null
 }
 ```
 
+### Reactivate Card (`POST /api/card/reactivate`)
+- **Request Body:** `{}`
+- **Response (200 OK):**
+```json
+{
+  "data": {
+    "prana_id": "PRAN-2973CAC1",
+    "card_status": "active"
+  },
+  "error": null
+}
+```
+*Note: Public scans hitting a suspended card return `card_status: "suspended"`.*
+
 ---
 
-## 💊 3. Medications Management APIs
+## 📍 6. Recent Scan Feed (`GET /api/scans/recent?limit=5`)
 
-### 3.1 Fetch User's Medications (`GET /api/medications`)
-- **Endpoint:** `GET /api/medications`
+- **Endpoint:** `GET /api/scans/recent?limit=5`
 - **Headers:** `Authorization: Bearer <JWT_TOKEN>`
 - **Response (200 OK):**
+
 ```json
 {
-  "success": true,
   "data": [
     {
-      "id": "m1111111-2222-3333-4444-555555555555",
-      "user_id": "1f0dcda7-40cf-48f5-85a1-b840658db432",
-      "name": "Metformin",
-      "generic_name": "Metformin Hydrochloride",
-      "dose": "500mg",
-      "frequency": "BD",
-      "prescribed_by": "Dr. A. Sharma",
-      "prescribed_date": "2024-01-10",
-      "is_active": true,
-      "encrypted_prescription_url": null,
-      "created_at": "2026-08-01T15:00:00Z"
+      "id": "scan-uuid-1",
+      "access_tier": "yellow",
+      "scanned_at": "2026-07-30T18:45:00Z",
+      "location_lat": 28.6139,
+      "location_lng": 77.2090,
+      "responder_org": "Responder (108 Delhi)",
+      "access_granted": true,
+      "denial_reason": null
     }
-  ]
+  ],
+  "error": null
 }
 ```
-
-### 3.2 Add Medication (`POST /api/medications`)
-- **Endpoint:** `POST /api/medications`
-- **Headers:** `Authorization: Bearer <JWT_TOKEN>`, `Content-Type: application/json`
-- **Request Body:**
-```json
-{
-  "name": "Metformin",
-  "generic_name": "Metformin Hydrochloride",
-  "dose": "500mg",
-  "frequency": "BD",
-  "prescribed_by": "Dr. A. Sharma",
-  "prescribed_date": "2024-01-10",
-  "is_active": true
-}
-```
-
-### 3.3 Edit / Deactivate Medication (`PATCH /api/medications/:id`)
-- **Endpoint:** `PATCH /api/medications/:id`
-- **Headers:** `Authorization: Bearer <JWT_TOKEN>`, `Content-Type: application/json`
-- **Request Body:**
-```json
-{
-  "is_active": false
-}
-```
-
-### 3.4 Delete Medication (`DELETE /api/medications/:id`)
-- **Endpoint:** `DELETE /api/medications/:id`
-- **Headers:** `Authorization: Bearer <JWT_TOKEN>`
-
----
-
-## ⚠️ 4. Allergies Management APIs
-
-### 4.1 Fetch Allergies (`GET /api/allergies`)
-- **Endpoint:** `GET /api/allergies`
-- **Headers:** `Authorization: Bearer <JWT_TOKEN>`
-
-### 4.2 Public / Emergency Critical Allergies (`GET /api/public/profiles/:user_id/critical-allergies`)
-- **Endpoint:** `GET /api/public/profiles/:user_id/critical-allergies`
-- **Response (200 OK):**
-```json
-{
-  "success": true,
-  "public_tier": "GREEN",
-  "critical_allergies": [
-    {
-      "allergen": "Peanuts",
-      "severity": "severe",
-      "reaction_description": "Anaphylaxis"
-    }
-  ]
-}
-```
-
-### 4.3 Create Allergy (`POST /api/allergies`)
-- **Endpoint:** `POST /api/allergies`
-- **Request Body:**
-```json
-{
-  "allergen": "Penicillin",
-  "severity": "severe",
-  "reaction_description": "Hives and breathing issue",
-  "date_diagnosed": "2020-03-12",
-  "is_critical": true
-}
-```
-
-### 4.4 Update Allergy (`PATCH /api/allergies/:id`)
-- **Endpoint:** `PATCH /api/allergies/:id`
-
-### 4.5 Delete Allergy (`DELETE /api/allergies/:id`)
-- **Endpoint:** `DELETE /api/allergies/:id`
-
----
-
-## 🏥 5. Medical Conditions & Vitals APIs
-
-### 5.1 Fetch Conditions (`GET /api/conditions`)
-- **Endpoint:** `GET /api/conditions`
-- **Headers:** `Authorization: Bearer <JWT_TOKEN>`
-
-### 5.2 Create Condition (`POST /api/conditions`)
-- **Endpoint:** `POST /api/conditions`
-- **Request Body:**
-```json
-{
-  "name": "Type 2 Diabetes",
-  "icd10_code": "E11",
-  "diagnosed_date": "2019-06-01",
-  "status": "chronic",
-  "treating_doctor": "Dr. Mehta",
-  "hospital": "Max Healthcare",
-  "notes": "Controlled with diet & Metformin"
-}
-```
-
-### 5.3 Fetch Vitals (`GET /api/vitals`)
-- **Endpoint:** `GET /api/vitals`
-- **Headers:** `Authorization: Bearer <JWT_TOKEN>`
-
-### 5.4 Log Vital Reading (`POST /api/vitals`)
-- **Endpoint:** `POST /api/vitals`
-- **Request Body:**
-```json
-{
-  "vital_type": "glucose",
-  "value": 110.5,
-  "unit": "mg/dL",
-  "source": "manual"
-}
-```
-
----
-
-## 🛡️ 6. Emergency Briefing & Security Center (My Card)
-
-### 6.1 Get Emergency Briefing (`GET /api/patient/briefing`)
-- **Endpoint:** `GET /api/patient/briefing`
-- **Headers:** `Authorization: Bearer <JWT_TOKEN>`
-
-### 6.2 Refresh Emergency Briefing (`POST /api/patient/briefing/refresh`)
-- **Endpoint:** `POST /api/patient/briefing/refresh`
-- **Headers:** `Authorization: Bearer <JWT_TOKEN>`
-
-### 6.3 Get Card Security Status (`GET /api/card/security`)
-- **Endpoint:** `GET /api/card/security`
-- **Response (200 OK):**
-```json
-{
-  "success": true,
-  "data": {
-    "prana_id": "PRAN-2cd7b33f",
-    "card_status": "active",
-    "daily_scan_limit": 10,
-    "scans_used_today": 2,
-    "scans_remaining": 8,
-    "allowed_countries": ["IN"],
-    "active_hours_start": "00:00",
-    "active_hours_end": "23:59"
-  }
-}
-```
-
-### 6.4 Update Card Security Settings (`PATCH /api/card/security`)
-- **Endpoint:** `PATCH /api/card/security`
-- **Request Body:**
-```json
-{
-  "card_status": "active",
-  "daily_scan_limit": 15,
-  "allowed_countries": ["IN", "US"]
-}
-```
-
-### 6.5 Get Scan History (`GET /api/card/scan-history`)
-- **Endpoint:** `GET /api/card/scan-history`
-
----
-
-## 🚨 7. Emergency Contacts & Family APIs
-
-### 7.1 Fetch Emergency Contacts (`GET /api/emergency-contacts`)
-- **Endpoint:** `GET /api/emergency-contacts`
-
-### 7.2 Add Emergency Contact (`POST /api/emergency-contacts`)
-- **Endpoint:** `POST /api/emergency-contacts`
-- **Request Body:**
-```json
-{
-  "name": "Rajesh Sharma",
-  "relationship": "father",
-  "phone": "9876543210",
-  "is_primary": true,
-  "notification_channels": ["push", "sms"]
-}
-```
-
-### 7.3 Send Test SMS Alert (`POST /api/emergency-contacts/test-sms`)
-- **Endpoint:** `POST /api/emergency-contacts/test-sms`
-
-### 7.4 Fetch Family Dependents (`GET /api/family/dependents`)
-- **Endpoint:** `GET /api/family/dependents`
-
----
-
-## 📷 8. AI Prescription Scanner & Drug Interaction Checker
-
-### 8.1 AI Prescription Scanner (`POST /api/scanner/prescription`)
-- **Endpoint:** `POST /api/scanner/prescription`
-- **Request Body:**
-```json
-{
-  "image_url": "https://storage.supabase.co/prescriptions/rx101.jpg"
-}
-```
-- **Response (200 OK):**
-```json
-{
-  "success": true,
-  "extracted_medications": [
-    {
-      "name": "Amoxicillin",
-      "generic_name": "Amoxicillin Trihydrate",
-      "dose": "500mg",
-      "frequency": "TDS (3 times daily)",
-      "confidence_score": 0.96
-    }
-  ]
-}
-```
-
-### 8.2 Drug Interaction & Allergy Checker (`POST /api/checker/drug-interaction`)
-- **Endpoint:** `POST /api/checker/drug-interaction`
-- **Request Body:**
-```json
-{
-  "candidate_drug": "Amoxicillin 500mg"
-}
-```
-- **Response (200 OK):**
-```json
-{
-  "success": true,
-  "safe_to_administer": false,
-  "candidate_drug": "Amoxicillin 500mg",
-  "total_conflicts": 1,
-  "warnings": [
-    {
-      "type": "ALLERGY_CONFLICT",
-      "severity": "severe",
-      "message": "CRITICAL ALERT: Candidate drug 'Amoxicillin 500mg' conflicts with registered allergy 'Penicillin'."
-    }
-  ]
-}
-```
+*Note: If geolocation was denied by the responder's browser, `location_lat` and `location_lng` return `null` safely without crashing UI map components.*

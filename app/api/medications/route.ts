@@ -39,12 +39,17 @@ export async function POST(req: NextRequest) {
             return NextResponse.json({ success: false, error: 'frequency is required (e.g. BD, OD, TDS)' }, { status: 400 });
         }
 
+        const doseString = body.dose || (body.dose_value && body.dose_unit ? `${body.dose_value} ${body.dose_unit}` : body.dose_value || '');
+
         const newRecord = {
             user_id: user.id,
             name: body.name.trim(),
             generic_name: body.generic_name || null,
-            dose: body.dose.trim(),
+            dose: doseString.trim(),
+            dose_value: body.dose_value ? String(body.dose_value).trim() : null,
+            dose_unit: body.dose_unit ? String(body.dose_unit).trim() : null,
             frequency: body.frequency.trim(),
+            reason: body.reason ? String(body.reason).trim() : null,
             prescribed_by: body.prescribed_by || null,
             prescribed_date: body.prescribed_date || null,
             is_active: body.is_active !== undefined ? Boolean(body.is_active) : true,

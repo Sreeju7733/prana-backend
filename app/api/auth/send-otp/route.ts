@@ -1,5 +1,6 @@
 import { NextRequest, NextResponse } from 'next/server';
 import { createClient } from '@supabase/supabase-js';
+import { storeOtp } from '@/lib/otpStore';
 
 // Initialize Supabase admin client (service_role)
 const supabase = createClient(
@@ -16,22 +17,32 @@ export async function POST(req: NextRequest) {
             return NextResponse.json({ error: 'Invalid phone number' }, { status: 400 });
         }
 
+        const cleanPhone = phone.trim();
+
         // Generate 6-digit OTP
         const otp = Math.floor(100000 + Math.random() * 900000).toString();
-        
-        // Store OTP in Supabase
-        await supabase
+
+        // 1. Store in memory store
+        storeOtp(cleanPhone, otp);
+
+        // 2. Store in Supabase database
+        const { error: dbError } = await supabase
             .from('otp_logs')
             .insert({
-                phone: phone,
+                phone: cleanPhone,
                 otp_code: otp,
+                is_used: false,
                 ip_address: req.headers.get('x-forwarded-for') || req.headers.get('x-real-ip') || 'unknown',
                 user_agent: req.headers.get('user-agent'),
                 expires_at: new Date(Date.now() + 5 * 60 * 1000).toISOString()
             });
 
+        if (dbError) {
+            console.warn('DB OTP Insert Note:', dbError.message);
+        }
+
         // TODO: Send actual SMS via Fast2SMS
-        console.log(`📱 OTP for ${phone}: ${otp}`);
+        console.log(`📱 OTP for ${cleanPhone}: ${otp}`);
 
         // FOR DEVELOPMENT: Return OTP (remove in production)
         return NextResponse.json({ 
