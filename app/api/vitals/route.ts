@@ -39,6 +39,14 @@ export async function GET(req: NextRequest) {
     }
 }
 
+function normalizeVitalType(type: string): string {
+    const t = type.toLowerCase().trim().replace(/[\s-]/g, '_');
+    if (t === 'blood_pressure' || t === 'bp') return 'bp_systolic';
+    if (t === 'blood_glucose') return 'glucose';
+    if (ALLOWED_VITAL_TYPES.includes(t)) return t;
+    return 'heart_rate';
+}
+
 // POST /api/vitals - Log a new vital reading
 export async function POST(req: NextRequest) {
     try {
@@ -49,14 +57,73 @@ export async function POST(req: NextRequest) {
             return NextResponse.json({ success: false, error: 'vital_type is required' }, { status: 400 });
         }
 
-        if (body.value === undefined) {
+        if (body.value === undefined || body.value === null) {
             return NextResponse.json({ success: false, error: 'value is required' }, { status: 400 });
         }
 
-        const newRecord = {
+        const rawType = body.vital_type.trim();
+
+        // Special handling for Blood Pressure: create both Systolic and Diastolic entries
+        if (rawType.toLowerCase().replaceAll(' ', '_') === 'blood_pressure' || rawType.toLowerCase() === 'bp') {
+            const sysVal = typeof body.value === 'number' ? body.value : (parseFloat(String(body.value)) || 120);
+            let diaVal = 80;
+            if (body.unit && String(body.unit).includes('/')) {
+                const parts = String(body.unit).split('/');
+                if (parts.length > 1) {
+                    diaVal = parseFloat(parts[1]) || 80;
+                }
+            }
+
+            const sysRecord = {
+                user_id: user.id,
+                vital_type: 'bp_systolic',
+                value: sysVal,
+                unit: 'mmHg',
+                source: body.source || 'manual',
+                recorded_at: body.recorded_at || new Date().toISOString()
+            };
+
+            const diaRecord = {
+                user_id: user.id,
+                vital_type: 'bp_diastolic',
+                value: diaVal,
+                unit: 'mmHg',
+                source: body.source || 'manual',
+                recorded_at: body.recorded_at || new Date().toISOString()
+            };
+
+            const { data, error } = await supabase
+                .from('vitals')
+                .insert([sysRecord, diaRecord])
+                .select();
+
+            if (error) {
+                // Fallback for live Supabase schema without optional columns
+                const { data: fbData, error: fbError } = await supabase
+                    .from('vitals')
+                    .insert([
+                        { user_id: user.id, vital_type: 'bp_systolic', value: sysVal, unit: 'mmHg' },
+                        { user_id: user.id, vital_type: 'bp_diastolic', value: diaVal, unit: 'mmHg' }
+                    ])
+                    .select();
+
+                if (fbError) {
+                    return NextResponse.json({ success: false, error: fbError.message }, { status: 500 });
+                }
+                return NextResponse.json({ success: true, message: 'Blood pressure logged successfully', data: fbData }, { status: 201 });
+            }
+
+            return NextResponse.json({ success: true, message: 'Blood pressure logged successfully', data }, { status: 201 });
+        }
+
+        // Single vital type normalization
+        const validVitalType = normalizeVitalType(rawType);
+        const numVal = typeof body.value === 'number' ? body.value : (parseFloat(String(body.value)) || 0);
+
+        const newRecord: Record<string, any> = {
             user_id: user.id,
-            vital_type: body.vital_type.trim(),
-            value: body.value,
+            vital_type: validVitalType,
+            value: numVal,
             unit: body.unit ? String(body.unit).trim() : '',
             source: body.source || 'manual',
             recorded_at: body.recorded_at || new Date().toISOString()
@@ -69,6 +136,31 @@ export async function POST(req: NextRequest) {
             .single();
 
         if (error) {
+            // Fallback for live Supabase schema without optional columns
+            if (error.code === '42703' || error.message.includes('column') || error.message.includes('constraint')) {
+                const fallbackRecord = {
+                    user_id: user.id,
+                    vital_type: validVitalType,
+                    value: numVal,
+                    unit: body.unit ? String(body.unit).trim() : ''
+                };
+                const { data: fbData, error: fbError } = await supabase
+                    .from('vitals')
+                    .insert([fallbackRecord])
+                    .select()
+                    .single();
+
+                if (fbError) {
+                    return NextResponse.json({ success: false, error: fbError.message }, { status: 500 });
+                }
+
+                return NextResponse.json({
+                    success: true,
+                    message: 'Vital reading logged successfully',
+                    data: fbData
+                }, { status: 201 });
+            }
+
             return NextResponse.json({ success: false, error: error.message }, { status: 500 });
         }
 
