@@ -168,37 +168,15 @@ Validates connection to Supabase DB.
 
 ## 🩸 Allergies Management APIs
 
-### Database Schema
-
-```sql
-CREATE TABLE allergies (
-    id UUID PRIMARY KEY DEFAULT uuid_generate_v4(),
-    user_id UUID NOT NULL REFERENCES profiles(id) ON DELETE CASCADE,
-    allergen TEXT NOT NULL,
-    severity TEXT CHECK (severity IN ('mild', 'moderate', 'severe', 'life_threatening')),
-    reaction_description TEXT,
-    date_diagnosed DATE,
-    -- For public display (GREEN tier)
-    is_critical BOOLEAN DEFAULT false,
-    created_at TIMESTAMPTZ DEFAULT NOW(),
-    updated_at TIMESTAMPTZ DEFAULT NOW()
-);
-
-CREATE INDEX idx_allergies_user ON allergies(user_id);
-CREATE INDEX idx_allergies_critical ON allergies(user_id, is_critical) WHERE is_critical = true;
-```
-
----
-
 ### 1. API Endpoints Overview
 
-| Method | Endpoint | Access Level | Description |
-| :--- | :--- | :--- | :--- |
-| **GET** | `/api/allergies` | Authenticated User (Self) | List all allergies for the logged-in user |
-| **GET** | `/api/public/profiles/:user_id/critical-allergies` | Public / Emergency | List only `is_critical = true` allergies (GREEN tier) |
-| **POST** | `/api/allergies` | Authenticated User | Create a new allergy record |
-| **PATCH** | `/api/allergies/:id` | Authenticated User (Owner) | Update an existing allergy record |
-| **DELETE** | `/api/allergies/:id` | Authenticated User (Owner) | Remove an allergy record |
+| Method     | Endpoint                                           | Access Level               | Description                                           |
+| :--------- | :------------------------------------------------- | :------------------------- | :---------------------------------------------------- |
+| **GET**    | `/api/allergies`                                   | Authenticated User (Self)  | List all allergies for the logged-in user             |
+| **GET**    | `/api/public/profiles/:user_id/critical-allergies` | Public / Emergency         | List only `is_critical = true` allergies (GREEN tier) |
+| **POST**   | `/api/allergies`                                   | Authenticated User         | Create a new allergy record                           |
+| **PATCH**  | `/api/allergies/:id`                               | Authenticated User (Owner) | Update an existing allergy record                     |
+| **DELETE** | `/api/allergies/:id`                               | Authenticated User (Owner) | Remove an allergy record                              |
 
 ---
 
@@ -243,8 +221,8 @@ Leverages the optimized partial index (`idx_allergies_critical`) to return only 
 - **Database Query:**
 
 ```sql
-SELECT allergen, severity, reaction_description 
-FROM allergies 
+SELECT allergen, severity, reaction_description
+FROM allergies
 WHERE user_id = :user_id AND is_critical = true;
 ```
 
@@ -371,4 +349,3 @@ Deletes an existing allergy record owned by the authenticated user.
   "message": "Allergy record deleted successfully"
 }
 ```
-
