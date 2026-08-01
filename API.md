@@ -1,27 +1,23 @@
-# Prana Backend API Documentation
+# Prana Backend Complete API Documentation
 
-Base URL: `http://<HOST>:3000` (e.g. `http://:3000`)
+Base URL: `http://<HOST>:3000` (e.g. `http://localhost:3000`)
 
 ---
 
-## 🔑 Authentication Flow
+## 🔑 1. Authentication & Onboarding Flow
 
-### 1. Send OTP
-
+### 1.1 Send OTP
 Generates a 6-digit OTP and logs it to `otp_logs`.
 
 - **Endpoint:** `POST /api/auth/send-otp`
 - **Headers:** `Content-Type: application/json`
 - **Request Body:**
-
 ```json
 {
   "phone": "9876543210"
 }
 ```
-
 - **Response (200 OK):**
-
 ```json
 {
   "success": true,
@@ -32,23 +28,19 @@ Generates a 6-digit OTP and logs it to `otp_logs`.
 
 ---
 
-### 2. Verify OTP
-
+### 1.2 Verify OTP
 Verifies the OTP, creates an `auth.users` record and a `profiles` entry if the user is new, and returns a JWT token.
 
 - **Endpoint:** `POST /api/auth/verify-otp`
 - **Headers:** `Content-Type: application/json`
 - **Request Body:**
-
 ```json
 {
   "phone": "9876543210",
   "otp": "791963"
 }
 ```
-
 - **Response (200 OK):**
-
 ```json
 {
   "success": true,
@@ -67,17 +59,14 @@ Verifies the OTP, creates an `auth.users` record and a `profiles` entry if the u
 
 ---
 
-## 👤 Patient Profile APIs (After Verification)
+## 👤 2. Patient Profile APIs
 
-### 3. Get Patient Profile
-
+### 2.1 Get Patient Profile
 Fetches current logged-in user profile using JWT token.
 
 - **Endpoint:** `GET /api/patient/profile`
-- **Headers:**
-  - `Authorization: Bearer <JWT_TOKEN>`
+- **Headers:** `Authorization: Bearer <JWT_TOKEN>`
 - **Response (200 OK):**
-
 ```json
 {
   "success": true,
@@ -103,8 +92,7 @@ Fetches current logged-in user profile using JWT token.
 
 ---
 
-### 4. Setup / Update Profile
-
+### 2.2 Setup / Update Profile
 Updates user profile during onboarding (profile setup) or settings edit.
 
 - **Endpoint:** `PUT /api/patient/profile`
@@ -112,7 +100,6 @@ Updates user profile during onboarding (profile setup) or settings edit.
   - `Content-Type: application/json`
   - `Authorization: Bearer <JWT_TOKEN>`
 - **Request Body (All fields optional):**
-
 ```json
 {
   "full_name": "John Doe",
@@ -123,11 +110,7 @@ Updates user profile during onboarding (profile setup) or settings edit.
   "height_cm": 178
 }
 ```
-
-- **Allowed `blood_group` values:** `'A+'`, `'A-'`, `'B+'`, `'B-'`, `'AB+'`, `'AB-'`, `'O+'`, `'O-'`, `'Unknown'`
-- **Allowed `gender` values:** `'M'`, `'F'`, `'Other'`, `'Unknown'`
 - **Response (200 OK):**
-
 ```json
 {
   "success": true,
@@ -148,86 +131,74 @@ Updates user profile during onboarding (profile setup) or settings edit.
 
 ---
 
-## 🛠️ Health Checks
+## 💊 3. Medications Management APIs
 
-### 5. Supabase Database Health Check
-
-Validates connection to Supabase DB.
-
-- **Endpoint:** `GET /api/health/supabase`
+### 3.1 Fetch User's Medications (`GET /api/medications`)
+- **Endpoint:** `GET /api/medications`
+- **Headers:** `Authorization: Bearer <JWT_TOKEN>`
 - **Response (200 OK):**
-
-```json
-{
-  "status": "healthy",
-  "timestamp": "2026-07-30T07:10:00.000Z"
-}
-```
-
----
-
-## 🩸 Allergies Management APIs
-
-### 1. API Endpoints Overview
-
-| Method     | Endpoint                                           | Access Level               | Description                                           |
-| :--------- | :------------------------------------------------- | :------------------------- | :---------------------------------------------------- |
-| **GET**    | `/api/allergies`                                   | Authenticated User (Self)  | List all allergies for the logged-in user             |
-| **GET**    | `/api/public/profiles/:user_id/critical-allergies` | Public / Emergency         | List only `is_critical = true` allergies (GREEN tier) |
-| **POST**   | `/api/allergies`                                   | Authenticated User         | Create a new allergy record                           |
-| **PATCH**  | `/api/allergies/:id`                               | Authenticated User (Owner) | Update an existing allergy record                     |
-| **DELETE** | `/api/allergies/:id`                               | Authenticated User (Owner) | Remove an allergy record                              |
-
----
-
-### 2. Request & Response Payload Specs
-
-#### A. Fetch User's Allergies (`GET /api/allergies`)
-
-Retrieves all private/full allergy records for the authenticated user.
-
-- **Endpoint:** `GET /api/allergies`
-- **Headers:**
-  - `Authorization: Bearer <JWT_TOKEN>`
-- **Response (200 OK):**
-
 ```json
 {
   "success": true,
   "data": [
     {
-      "id": "c39a8c12-3456-4921-8208-111111111111",
-      "user_id": "f5832b84-1234-4567-8901-222222222222",
-      "allergen": "Peanuts",
-      "severity": "severe",
-      "reaction_description": "Anaphylaxis, hives, shortness of breath",
-      "date_diagnosed": "2018-05-14",
-      "is_critical": true,
-      "created_at": "2026-08-01T15:00:00Z",
-      "updated_at": "2026-08-01T15:00:00Z"
+      "id": "m1111111-2222-3333-4444-555555555555",
+      "user_id": "1f0dcda7-40cf-48f5-85a1-b840658db432",
+      "name": "Metformin",
+      "generic_name": "Metformin Hydrochloride",
+      "dose": "500mg",
+      "frequency": "BD",
+      "prescribed_by": "Dr. A. Sharma",
+      "prescribed_date": "2024-01-10",
+      "is_active": true,
+      "encrypted_prescription_url": null,
+      "created_at": "2026-08-01T15:00:00Z"
     }
   ]
 }
 ```
 
----
-
-#### B. Public / Emergency View (`GET /api/public/profiles/:user_id/critical-allergies`)
-
-Leverages the optimized partial index (`idx_allergies_critical`) to return only critical allergies for emergency badges or public profiles.
-
-- **Endpoint:** `GET /api/public/profiles/:user_id/critical-allergies`
-- **Access Level:** Public / Emergency
-- **Database Query:**
-
-```sql
-SELECT allergen, severity, reaction_description
-FROM allergies
-WHERE user_id = :user_id AND is_critical = true;
+### 3.2 Add Medication (`POST /api/medications`)
+- **Endpoint:** `POST /api/medications`
+- **Headers:** `Authorization: Bearer <JWT_TOKEN>`, `Content-Type: application/json`
+- **Request Body:**
+```json
+{
+  "name": "Metformin",
+  "generic_name": "Metformin Hydrochloride",
+  "dose": "500mg",
+  "frequency": "BD",
+  "prescribed_by": "Dr. A. Sharma",
+  "prescribed_date": "2024-01-10",
+  "is_active": true
+}
 ```
 
-- **Response (200 OK):** (Exposes minimal sensitive data)
+### 3.3 Edit / Deactivate Medication (`PATCH /api/medications/:id`)
+- **Endpoint:** `PATCH /api/medications/:id`
+- **Headers:** `Authorization: Bearer <JWT_TOKEN>`, `Content-Type: application/json`
+- **Request Body:**
+```json
+{
+  "is_active": false
+}
+```
 
+### 3.4 Delete Medication (`DELETE /api/medications/:id`)
+- **Endpoint:** `DELETE /api/medications/:id`
+- **Headers:** `Authorization: Bearer <JWT_TOKEN>`
+
+---
+
+## ⚠️ 4. Allergies Management APIs
+
+### 4.1 Fetch Allergies (`GET /api/allergies`)
+- **Endpoint:** `GET /api/allergies`
+- **Headers:** `Authorization: Bearer <JWT_TOKEN>`
+
+### 4.2 Public / Emergency Critical Allergies (`GET /api/public/profiles/:user_id/critical-allergies`)
+- **Endpoint:** `GET /api/public/profiles/:user_id/critical-allergies`
+- **Response (200 OK):**
 ```json
 {
   "success": true,
@@ -242,110 +213,184 @@ WHERE user_id = :user_id AND is_critical = true;
 }
 ```
 
----
-
-#### C. Create Allergy (`POST /api/allergies`)
-
-Creates a new allergy record for the authenticated user.
-
+### 4.3 Create Allergy (`POST /api/allergies`)
 - **Endpoint:** `POST /api/allergies`
-- **Headers:**
-  - `Content-Type: application/json`
-  - `Authorization: Bearer <JWT_TOKEN>`
 - **Request Body:**
-
 ```json
 {
   "allergen": "Penicillin",
-  "severity": "moderate",
-  "reaction_description": "Mild skin rash and swelling",
-  "date_diagnosed": "2021-11-02",
-  "is_critical": false
+  "severity": "severe",
+  "reaction_description": "Hives and breathing issue",
+  "date_diagnosed": "2020-03-12",
+  "is_critical": true
 }
 ```
 
-- **Validation Rules:**
-  - `allergen`: Required, string, max 255 characters.
-  - `severity`: Optional, string, must strictly match one of `'mild'`, `'moderate'`, `'severe'`, or `'life_threatening'`.
-  - `reaction_description`: Optional, string.
-  - `date_diagnosed`: Optional, ISO date string (`YYYY-MM-DD`), cannot be in the future.
-  - `is_critical`: Optional, boolean (default: `false`).
-  - `user_id`: **Do not accept from body.** Extracted securely from the JWT auth token to prevent spoofing.
-
-- **Response (201 Created):**
-
-```json
-{
-  "success": true,
-  "message": "Allergy record created successfully",
-  "data": {
-    "id": "d40b9d23-4567-4012-9309-222222222222",
-    "user_id": "f5832b84-1234-4567-8901-222222222222",
-    "allergen": "Penicillin",
-    "severity": "moderate",
-    "reaction_description": "Mild skin rash and swelling",
-    "date_diagnosed": "2021-11-02",
-    "is_critical": false,
-    "created_at": "2026-08-01T15:20:00Z",
-    "updated_at": "2026-08-01T15:20:00Z"
-  }
-}
-```
-
----
-
-#### D. Update Allergy (`PATCH /api/allergies/:id`)
-
-Updates an existing allergy record. Partial updates are allowed.
-
+### 4.4 Update Allergy (`PATCH /api/allergies/:id`)
 - **Endpoint:** `PATCH /api/allergies/:id`
-- **Headers:**
-  - `Content-Type: application/json`
-  - `Authorization: Bearer <JWT_TOKEN>`
-- **Request Body:** (Partial updates allowed)
 
+### 4.5 Delete Allergy (`DELETE /api/allergies/:id`)
+- **Endpoint:** `DELETE /api/allergies/:id`
+
+---
+
+## 🏥 5. Medical Conditions & Vitals APIs
+
+### 5.1 Fetch Conditions (`GET /api/conditions`)
+- **Endpoint:** `GET /api/conditions`
+- **Headers:** `Authorization: Bearer <JWT_TOKEN>`
+
+### 5.2 Create Condition (`POST /api/conditions`)
+- **Endpoint:** `POST /api/conditions`
+- **Request Body:**
 ```json
 {
-  "is_critical": true,
-  "severity": "life_threatening"
+  "name": "Type 2 Diabetes",
+  "icd10_code": "E11",
+  "diagnosed_date": "2019-06-01",
+  "status": "chronic",
+  "treating_doctor": "Dr. Mehta",
+  "hospital": "Max Healthcare",
+  "notes": "Controlled with diet & Metformin"
 }
 ```
 
-- **Automated Action:** Ensure backend or database trigger sets `updated_at = NOW()` whenever an update succeeds.
-- **Response (200 OK):**
+### 5.3 Fetch Vitals (`GET /api/vitals`)
+- **Endpoint:** `GET /api/vitals`
+- **Headers:** `Authorization: Bearer <JWT_TOKEN>`
 
+### 5.4 Log Vital Reading (`POST /api/vitals`)
+- **Endpoint:** `POST /api/vitals`
+- **Request Body:**
 ```json
 {
-  "success": true,
-  "message": "Allergy record updated successfully",
-  "data": {
-    "id": "d40b9d23-4567-4012-9309-222222222222",
-    "user_id": "f5832b84-1234-4567-8901-222222222222",
-    "allergen": "Penicillin",
-    "severity": "life_threatening",
-    "reaction_description": "Mild skin rash and swelling",
-    "date_diagnosed": "2021-11-02",
-    "is_critical": true,
-    "created_at": "2026-08-01T15:20:00Z",
-    "updated_at": "2026-08-01T15:25:00Z"
-  }
+  "vital_type": "glucose",
+  "value": 110.5,
+  "unit": "mg/dL",
+  "source": "manual"
 }
 ```
 
 ---
 
-#### E. Delete Allergy (`DELETE /api/allergies/:id`)
+## 🛡️ 6. Emergency Briefing & Security Center (My Card)
 
-Deletes an existing allergy record owned by the authenticated user.
+### 6.1 Get Emergency Briefing (`GET /api/patient/briefing`)
+- **Endpoint:** `GET /api/patient/briefing`
+- **Headers:** `Authorization: Bearer <JWT_TOKEN>`
 
-- **Endpoint:** `DELETE /api/allergies/:id`
-- **Headers:**
-  - `Authorization: Bearer <JWT_TOKEN>`
+### 6.2 Refresh Emergency Briefing (`POST /api/patient/briefing/refresh`)
+- **Endpoint:** `POST /api/patient/briefing/refresh`
+- **Headers:** `Authorization: Bearer <JWT_TOKEN>`
+
+### 6.3 Get Card Security Status (`GET /api/card/security`)
+- **Endpoint:** `GET /api/card/security`
 - **Response (200 OK):**
-
 ```json
 {
   "success": true,
-  "message": "Allergy record deleted successfully"
+  "data": {
+    "prana_id": "PRAN-2cd7b33f",
+    "card_status": "active",
+    "daily_scan_limit": 10,
+    "scans_used_today": 2,
+    "scans_remaining": 8,
+    "allowed_countries": ["IN"],
+    "active_hours_start": "00:00",
+    "active_hours_end": "23:59"
+  }
+}
+```
+
+### 6.4 Update Card Security Settings (`PATCH /api/card/security`)
+- **Endpoint:** `PATCH /api/card/security`
+- **Request Body:**
+```json
+{
+  "card_status": "active",
+  "daily_scan_limit": 15,
+  "allowed_countries": ["IN", "US"]
+}
+```
+
+### 6.5 Get Scan History (`GET /api/card/scan-history`)
+- **Endpoint:** `GET /api/card/scan-history`
+
+---
+
+## 🚨 7. Emergency Contacts & Family APIs
+
+### 7.1 Fetch Emergency Contacts (`GET /api/emergency-contacts`)
+- **Endpoint:** `GET /api/emergency-contacts`
+
+### 7.2 Add Emergency Contact (`POST /api/emergency-contacts`)
+- **Endpoint:** `POST /api/emergency-contacts`
+- **Request Body:**
+```json
+{
+  "name": "Rajesh Sharma",
+  "relationship": "father",
+  "phone": "9876543210",
+  "is_primary": true,
+  "notification_channels": ["push", "sms"]
+}
+```
+
+### 7.3 Send Test SMS Alert (`POST /api/emergency-contacts/test-sms`)
+- **Endpoint:** `POST /api/emergency-contacts/test-sms`
+
+### 7.4 Fetch Family Dependents (`GET /api/family/dependents`)
+- **Endpoint:** `GET /api/family/dependents`
+
+---
+
+## 📷 8. AI Prescription Scanner & Drug Interaction Checker
+
+### 8.1 AI Prescription Scanner (`POST /api/scanner/prescription`)
+- **Endpoint:** `POST /api/scanner/prescription`
+- **Request Body:**
+```json
+{
+  "image_url": "https://storage.supabase.co/prescriptions/rx101.jpg"
+}
+```
+- **Response (200 OK):**
+```json
+{
+  "success": true,
+  "extracted_medications": [
+    {
+      "name": "Amoxicillin",
+      "generic_name": "Amoxicillin Trihydrate",
+      "dose": "500mg",
+      "frequency": "TDS (3 times daily)",
+      "confidence_score": 0.96
+    }
+  ]
+}
+```
+
+### 8.2 Drug Interaction & Allergy Checker (`POST /api/checker/drug-interaction`)
+- **Endpoint:** `POST /api/checker/drug-interaction`
+- **Request Body:**
+```json
+{
+  "candidate_drug": "Amoxicillin 500mg"
+}
+```
+- **Response (200 OK):**
+```json
+{
+  "success": true,
+  "safe_to_administer": false,
+  "candidate_drug": "Amoxicillin 500mg",
+  "total_conflicts": 1,
+  "warnings": [
+    {
+      "type": "ALLERGY_CONFLICT",
+      "severity": "severe",
+      "message": "CRITICAL ALERT: Candidate drug 'Amoxicillin 500mg' conflicts with registered allergy 'Penicillin'."
+    }
+  ]
 }
 ```
