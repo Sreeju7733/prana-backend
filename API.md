@@ -163,3 +163,212 @@ Validates connection to Supabase DB.
   "timestamp": "2026-07-30T07:10:00.000Z"
 }
 ```
+
+---
+
+## 🩸 Allergies Management APIs
+
+### Database Schema
+
+```sql
+CREATE TABLE allergies (
+    id UUID PRIMARY KEY DEFAULT uuid_generate_v4(),
+    user_id UUID NOT NULL REFERENCES profiles(id) ON DELETE CASCADE,
+    allergen TEXT NOT NULL,
+    severity TEXT CHECK (severity IN ('mild', 'moderate', 'severe', 'life_threatening')),
+    reaction_description TEXT,
+    date_diagnosed DATE,
+    -- For public display (GREEN tier)
+    is_critical BOOLEAN DEFAULT false,
+    created_at TIMESTAMPTZ DEFAULT NOW(),
+    updated_at TIMESTAMPTZ DEFAULT NOW()
+);
+
+CREATE INDEX idx_allergies_user ON allergies(user_id);
+CREATE INDEX idx_allergies_critical ON allergies(user_id, is_critical) WHERE is_critical = true;
+```
+
+---
+
+### 1. API Endpoints Overview
+
+| Method | Endpoint | Access Level | Description |
+| :--- | :--- | :--- | :--- |
+| **GET** | `/api/allergies` | Authenticated User (Self) | List all allergies for the logged-in user |
+| **GET** | `/api/public/profiles/:user_id/critical-allergies` | Public / Emergency | List only `is_critical = true` allergies (GREEN tier) |
+| **POST** | `/api/allergies` | Authenticated User | Create a new allergy record |
+| **PATCH** | `/api/allergies/:id` | Authenticated User (Owner) | Update an existing allergy record |
+| **DELETE** | `/api/allergies/:id` | Authenticated User (Owner) | Remove an allergy record |
+
+---
+
+### 2. Request & Response Payload Specs
+
+#### A. Fetch User's Allergies (`GET /api/allergies`)
+
+Retrieves all private/full allergy records for the authenticated user.
+
+- **Endpoint:** `GET /api/allergies`
+- **Headers:**
+  - `Authorization: Bearer <JWT_TOKEN>`
+- **Response (200 OK):**
+
+```json
+{
+  "success": true,
+  "data": [
+    {
+      "id": "c39a8c12-3456-4921-8208-111111111111",
+      "user_id": "f5832b84-1234-4567-8901-222222222222",
+      "allergen": "Peanuts",
+      "severity": "severe",
+      "reaction_description": "Anaphylaxis, hives, shortness of breath",
+      "date_diagnosed": "2018-05-14",
+      "is_critical": true,
+      "created_at": "2026-08-01T15:00:00Z",
+      "updated_at": "2026-08-01T15:00:00Z"
+    }
+  ]
+}
+```
+
+---
+
+#### B. Public / Emergency View (`GET /api/public/profiles/:user_id/critical-allergies`)
+
+Leverages the optimized partial index (`idx_allergies_critical`) to return only critical allergies for emergency badges or public profiles.
+
+- **Endpoint:** `GET /api/public/profiles/:user_id/critical-allergies`
+- **Access Level:** Public / Emergency
+- **Database Query:**
+
+```sql
+SELECT allergen, severity, reaction_description 
+FROM allergies 
+WHERE user_id = :user_id AND is_critical = true;
+```
+
+- **Response (200 OK):** (Exposes minimal sensitive data)
+
+```json
+{
+  "success": true,
+  "public_tier": "GREEN",
+  "critical_allergies": [
+    {
+      "allergen": "Peanuts",
+      "severity": "severe",
+      "reaction_description": "Anaphylaxis"
+    }
+  ]
+}
+```
+
+---
+
+#### C. Create Allergy (`POST /api/allergies`)
+
+Creates a new allergy record for the authenticated user.
+
+- **Endpoint:** `POST /api/allergies`
+- **Headers:**
+  - `Content-Type: application/json`
+  - `Authorization: Bearer <JWT_TOKEN>`
+- **Request Body:**
+
+```json
+{
+  "allergen": "Penicillin",
+  "severity": "moderate",
+  "reaction_description": "Mild skin rash and swelling",
+  "date_diagnosed": "2021-11-02",
+  "is_critical": false
+}
+```
+
+- **Validation Rules:**
+  - `allergen`: Required, string, max 255 characters.
+  - `severity`: Optional, string, must strictly match one of `'mild'`, `'moderate'`, `'severe'`, or `'life_threatening'`.
+  - `reaction_description`: Optional, string.
+  - `date_diagnosed`: Optional, ISO date string (`YYYY-MM-DD`), cannot be in the future.
+  - `is_critical`: Optional, boolean (default: `false`).
+  - `user_id`: **Do not accept from body.** Extracted securely from the JWT auth token to prevent spoofing.
+
+- **Response (201 Created):**
+
+```json
+{
+  "success": true,
+  "message": "Allergy record created successfully",
+  "data": {
+    "id": "d40b9d23-4567-4012-9309-222222222222",
+    "user_id": "f5832b84-1234-4567-8901-222222222222",
+    "allergen": "Penicillin",
+    "severity": "moderate",
+    "reaction_description": "Mild skin rash and swelling",
+    "date_diagnosed": "2021-11-02",
+    "is_critical": false,
+    "created_at": "2026-08-01T15:20:00Z",
+    "updated_at": "2026-08-01T15:20:00Z"
+  }
+}
+```
+
+---
+
+#### D. Update Allergy (`PATCH /api/allergies/:id`)
+
+Updates an existing allergy record. Partial updates are allowed.
+
+- **Endpoint:** `PATCH /api/allergies/:id`
+- **Headers:**
+  - `Content-Type: application/json`
+  - `Authorization: Bearer <JWT_TOKEN>`
+- **Request Body:** (Partial updates allowed)
+
+```json
+{
+  "is_critical": true,
+  "severity": "life_threatening"
+}
+```
+
+- **Automated Action:** Ensure backend or database trigger sets `updated_at = NOW()` whenever an update succeeds.
+- **Response (200 OK):**
+
+```json
+{
+  "success": true,
+  "message": "Allergy record updated successfully",
+  "data": {
+    "id": "d40b9d23-4567-4012-9309-222222222222",
+    "user_id": "f5832b84-1234-4567-8901-222222222222",
+    "allergen": "Penicillin",
+    "severity": "life_threatening",
+    "reaction_description": "Mild skin rash and swelling",
+    "date_diagnosed": "2021-11-02",
+    "is_critical": true,
+    "created_at": "2026-08-01T15:20:00Z",
+    "updated_at": "2026-08-01T15:25:00Z"
+  }
+}
+```
+
+---
+
+#### E. Delete Allergy (`DELETE /api/allergies/:id`)
+
+Deletes an existing allergy record owned by the authenticated user.
+
+- **Endpoint:** `DELETE /api/allergies/:id`
+- **Headers:**
+  - `Authorization: Bearer <JWT_TOKEN>`
+- **Response (200 OK):**
+
+```json
+{
+  "success": true,
+  "message": "Allergy record deleted successfully"
+}
+```
+
