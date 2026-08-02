@@ -41,15 +41,15 @@ export async function generateEmergencySummary(userId: string): Promise<SummaryR
         const allergyMap = new Map<string, any>();
         if (rawAllergies) {
             for (const a of rawAllergies) {
-                const norm = normalizeAllergenName(a.allergen || '').toLowerCase();
-                if (norm) {
+                const rawName = String(a.allergen || a.name || '').trim();
+                const norm = normalizeAllergenName(rawName).toLowerCase();
+                if (norm && norm !== 'null' && norm !== 'undefined') {
                     if (!allergyMap.has(norm)) {
-                        allergyMap.set(norm, { ...a, allergen: normalizeAllergenName(a.allergen) });
+                        allergyMap.set(norm, { ...a, allergen: normalizeAllergenName(rawName) });
                     } else {
                         // Keep highest severity if duplicate
-                        const existing = allergyMap.get(norm);
                         if (a.is_critical || String(a.severity).toLowerCase() === 'severe') {
-                            allergyMap.set(norm, { ...a, allergen: normalizeAllergenName(a.allergen) });
+                            allergyMap.set(norm, { ...a, allergen: normalizeAllergenName(rawName) });
                         }
                     }
                 }
