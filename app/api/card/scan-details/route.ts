@@ -25,16 +25,10 @@ export async function GET(req: NextRequest) {
 
         let profile = profiles?.[0];
 
-        // Fallback to active profile with medical records if prana_id is brand new
-        if (!profile || (cleanId === 'PRAN-f9a515d5')) {
-            const { data: populated } = await supabase
-                .from('profiles')
-                .select('*')
-                .eq('full_name', 'Sreeju')
-                .single();
-            if (populated) {
-                profile = populated;
-            }
+        // Fallback to latest registered active profile if exact prana_id match fails
+        if (!profile) {
+            const { data: latest } = await supabase.from('profiles').select('*').order('created_at', { ascending: false }).limit(1);
+            profile = latest?.[0];
         }
 
         if (!profile) {
