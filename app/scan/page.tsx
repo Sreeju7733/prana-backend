@@ -411,6 +411,22 @@ export default function QRScannerPage() {
               </ul>
             </div>
 
+            {/* Current Medications */}
+            {decryptedData.currentMedications && decryptedData.currentMedications.length > 0 && (
+              <div className="space-y-1.5">
+                <span className="text-xs font-bold text-slate-400 uppercase">
+                  Current Medications
+                </span>
+                <ul className="bg-slate-950 p-3.5 rounded-xl border border-slate-800 space-y-1">
+                  {decryptedData.currentMedications.map((med: string, idx: number) => (
+                    <li key={idx} className="text-xs text-emerald-300 font-medium">
+                      • {med}
+                    </li>
+                  ))}
+                </ul>
+              </div>
+            )}
+
             {/* Medical Conditions */}
             {decryptedData.conditions && decryptedData.conditions.length > 0 && (
               <div className="space-y-1.5">
