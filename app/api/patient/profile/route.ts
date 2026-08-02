@@ -26,21 +26,72 @@ function verifyToken(req: NextRequest) {
 
 export async function GET(req: NextRequest) {
     try {
-        // Verify user
-        const user = verifyToken(req);
+        const { searchParams } = new URL(req.url);
+        const pranaId = searchParams.get('prana_id');
 
-        // Fetch profile from Supabase
-        const { data: profile, error } = await supabase
-            .from('profiles')
-            .select('*')
-            .eq('id', user.id)
-            .single();
+        let userId: string | null = null;
+        let profile: any = null;
 
-        if (error) {
+        if (pranaId) {
+            // Public query by PRANA ID
+            const { data: foundProfile } = await supabase
+                .from('profiles')
+                .select('*')
+                .or(`prana_id.eq.${pranaId},id.eq.${pranaId}`)
+                .single();
+
+            if (foundProfile) {
+                profile = foundProfile;
+                userId = foundProfile.id;
+            }
+        } else {
+            // Verify user via JWT token
+            const user = verifyToken(req);
+            userId = user.id;
+
+            const { data: foundProfile } = await supabase
+                .from('profiles')
+                .select('*')
+                .eq('id', user.id)
+                .single();
+
+            profile = foundProfile;
+        }
+
+        if (!profile || !userId) {
             return NextResponse.json({ error: 'Profile not found' }, { status: 404 });
         }
 
-        return NextResponse.json({ success: true, data: profile });
+        // Fetch all 8 real DB categories simultaneously
+        const [
+            { data: allergies },
+            { data: medications },
+            { data: conditions },
+            { data: devices },
+            { data: surgeries },
+            { data: vitals },
+            { data: contacts }
+        ] = await Promise.all([
+            supabase.from('allergies').select('*').eq('user_id', userId),
+            supabase.from('medications').select('*').eq('user_id', userId),
+            supabase.from('conditions').select('*').eq('user_id', userId),
+            supabase.from('devices').select('*').eq('user_id', userId),
+            supabase.from('surgeries').select('*').eq('user_id', userId),
+            supabase.from('vitals').select('*').eq('user_id', userId),
+            supabase.from('emergency_contacts').select('*').eq('user_id', userId),
+        ]);
+
+        return NextResponse.json({
+            success: true,
+            profile,
+            allergies: allergies || [],
+            medications: medications || [],
+            conditions: conditions || [],
+            devices: devices || [],
+            surgeries: surgeries || [],
+            vitals: vitals || [],
+            contacts: contacts || [],
+        });
 
     } catch (error: unknown) {
         const message = error instanceof Error ? error.message : 'Unauthorized access';
