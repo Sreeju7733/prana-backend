@@ -66,6 +66,21 @@ export async function GET(req: NextRequest) {
             );
         };
 
+        const rawContacts = filterUserRows(contacts);
+        const formattedContacts = rawContacts.map((c: any) => {
+            let phone = c.phone || c.phone_number || '';
+            if (!phone && c.encrypted_phone && c.encrypted_phone.startsWith('ENC:')) {
+                try {
+                    phone = Buffer.from(c.encrypted_phone.substring(4), 'base64').toString('utf-8');
+                } catch (_) {}
+            }
+            return {
+                ...c,
+                phone,
+                phone_number: phone,
+            };
+        });
+
         return NextResponse.json({
             success: true,
             patient: {
@@ -81,7 +96,7 @@ export async function GET(req: NextRequest) {
             devices: filterUserRows(devices),
             surgeries: filterUserRows(surgeries),
             vitals: filterUserRows(vitals),
-            contacts: filterUserRows(contacts),
+            contacts: formattedContacts,
         }, { status: 200 });
 
     } catch (err: any) {

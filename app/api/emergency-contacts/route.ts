@@ -1,6 +1,17 @@
 import { NextRequest, NextResponse } from 'next/server';
 import { supabase, verifyToken } from '@/lib/auth';
 
+// Helper to decode encrypted_phone column
+function decodePhone(encryptedPhone: string | null): string {
+    if (!encryptedPhone) return '';
+    if (encryptedPhone.startsWith('ENC:')) {
+        try {
+            return Buffer.from(encryptedPhone.substring(4), 'base64').toString('utf-8');
+        } catch (_) {}
+    }
+    return encryptedPhone;
+}
+
 // GET /api/emergency-contacts - Fetch emergency contacts list
 export async function GET(req: NextRequest) {
     try {
@@ -8,7 +19,7 @@ export async function GET(req: NextRequest) {
 
         const { data, error } = await supabase
             .from('emergency_contacts')
-            .select('id, name, relationship, is_primary, notification_channels, created_at')
+            .select('id, name, relationship, encrypted_phone, is_primary, notification_channels, created_at')
             .eq('user_id', user.id)
             .order('is_primary', { ascending: false });
 
@@ -16,7 +27,13 @@ export async function GET(req: NextRequest) {
             return NextResponse.json({ success: false, error: error.message }, { status: 500 });
         }
 
-        return NextResponse.json({ success: true, data: data || [] }, { status: 200 });
+        const formatted = (data || []).map((c: any) => ({
+            ...c,
+            phone: decodePhone(c.encrypted_phone),
+            phone_number: decodePhone(c.encrypted_phone),
+        }));
+
+        return NextResponse.json({ success: true, data: formatted }, { status: 200 });
 
     } catch (error: unknown) {
         const message = error instanceof Error ? error.message : 'Unauthorized access';
@@ -46,7 +63,7 @@ export async function POST(req: NextRequest) {
         const crypto = await import('crypto');
         const phone_hash = crypto.createHash('sha256').update(phoneClean).digest('hex');
 
-        // Simple mock encryption for phone if pgcrypto key not passed directly from client
+        // Simple base64 mock encryption for phone
         const encrypted_phone = `ENC:${Buffer.from(phoneClean).toString('base64')}`;
 
         const newContact = {
@@ -62,12 +79,18 @@ export async function POST(req: NextRequest) {
         const { data, error } = await supabase
             .from('emergency_contacts')
             .insert([newContact])
-            .select('id, name, relationship, is_primary, notification_channels, created_at')
+            .select('id, name, relationship, encrypted_phone, is_primary, notification_channels, created_at')
             .single();
 
         if (error) {
             return NextResponse.json({ success: false, error: error.message }, { status: 500 });
         }
+
+        const formattedData = {
+            ...data,
+            phone: phoneClean,
+            phone_number: phoneClean,
+        };
 
         return NextResponse.json({
             success: true,
