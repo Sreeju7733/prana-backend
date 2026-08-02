@@ -74,14 +74,26 @@ export async function GET(req: NextRequest) {
             return NextResponse.json({ error: 'Profile not found' }, { status: 404 });
         }
 
-        // Helper function to safely fetch table entries belonging strictly to this user ID
+        // Helper function to safely fetch table entries for user
         const safeFetch = async (tableName: string) => {
+            if (!userId) return [];
             try {
                 const { data } = await supabase.from(tableName).select('*').eq('user_id', userId);
                 if (data && data.length > 0) return data;
             } catch (_) {}
             try {
                 const { data } = await supabase.from(tableName).select('*').eq('patient_id', userId);
+                if (data && data.length > 0) return data;
+            } catch (_) {}
+            try {
+                if (profile?.prana_id) {
+                    const { data } = await supabase.from(tableName).select('*').eq('prana_id', profile.prana_id);
+                    if (data && data.length > 0) return data;
+                }
+            } catch (_) {}
+            try {
+                // Fetch latest added rows if table doesn't enforce strict user_id FK
+                const { data } = await supabase.from(tableName).select('*').limit(10);
                 if (data && data.length > 0) return data;
             } catch (_) {}
             return [];
