@@ -1,5 +1,6 @@
 import { NextRequest, NextResponse } from 'next/server';
 import { supabase, verifyToken } from '@/lib/auth';
+import { generateEmergencySummary } from '@/lib/summary_generator';
 
 // Helper for standard response wrapping
 function jsonResponse(data: unknown = null, error: unknown = null, status = 200) {
@@ -48,34 +49,8 @@ export async function GET(req: NextRequest) {
         if (allergiesCount && allergiesCount > 0) completionPoints += 15;
         if (conditionsCount && conditionsCount > 0) completionPoints += 10;
 
-        // 3. Fetch Briefing
-        let briefingData = null;
-        try {
-            const { data: briefingRecord } = await supabase
-                .from('medical_briefings')
-                .select('*')
-                .eq('user_id', user.id)
-                .order('created_at', { ascending: false })
-                .limit(1)
-                .maybeSingle();
-
-            if (briefingRecord) {
-                const isExpired = briefingRecord.expires_at ? new Date(briefingRecord.expires_at) < new Date() : false;
-                const bullets = [
-                    briefingRecord.green_briefing,
-                    briefingRecord.yellow_briefing
-                ].filter(Boolean);
-
-                briefingData = {
-                    text: briefingRecord.green_briefing || briefingRecord.yellow_briefing || 'Emergency health summary available.',
-                    bullets: bullets.length > 0 ? bullets : ['Health record registered.'],
-                    generated_at: briefingRecord.generated_at || briefingRecord.created_at,
-                    is_stale: isExpired
-                };
-            }
-        } catch {
-            briefingData = { error: 'generation_unavailable' };
-        }
+        // 3. Fetch Emergency Summary Briefing
+        const briefingData = await generateEmergencySummary(user.id);
 
         // 4. Fetch Recent Scans (Limit 5)
         const { data: scanLogs } = await supabase
