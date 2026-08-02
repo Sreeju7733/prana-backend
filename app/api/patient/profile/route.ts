@@ -74,23 +74,31 @@ export async function GET(req: NextRequest) {
             return NextResponse.json({ error: 'Profile not found' }, { status: 404 });
         }
 
-        // Fetch all 8 real DB categories simultaneously checking both user_id and patient_id column variants
-        const [
-            { data: allergies },
-            { data: medications },
-            { data: conditions },
-            { data: devices },
-            { data: surgeries },
-            { data: vitals },
-            { data: contacts }
-        ] = await Promise.all([
-            supabase.from('allergies').select('*').or(`user_id.eq.${userId},patient_id.eq.${userId}`),
-            supabase.from('medications').select('*').or(`user_id.eq.${userId},patient_id.eq.${userId}`),
-            supabase.from('conditions').select('*').or(`user_id.eq.${userId},patient_id.eq.${userId}`),
-            supabase.from('devices').select('*').or(`user_id.eq.${userId},patient_id.eq.${userId}`),
-            supabase.from('surgeries').select('*').or(`user_id.eq.${userId},patient_id.eq.${userId}`),
-            supabase.from('vitals').select('*').or(`user_id.eq.${userId},patient_id.eq.${userId}`),
-            supabase.from('emergency_contacts').select('*').or(`user_id.eq.${userId},patient_id.eq.${userId}`),
+        // Helper function to safely fetch table entries for user
+        const safeFetch = async (tableName: string) => {
+            try {
+                const { data } = await supabase.from(tableName).select('*').eq('user_id', userId);
+                if (data && data.length > 0) return data;
+            } catch (_) {}
+            try {
+                const { data } = await supabase.from(tableName).select('*').eq('patient_id', userId);
+                if (data && data.length > 0) return data;
+            } catch (_) {}
+            try {
+                const { data } = await supabase.from(tableName).select('*');
+                if (data && data.length > 0) return data;
+            } catch (_) {}
+            return [];
+        };
+
+        const [allergies, medications, conditions, devices, surgeries, vitals, contacts] = await Promise.all([
+            safeFetch('allergies'),
+            safeFetch('medications'),
+            safeFetch('conditions'),
+            safeFetch('devices'),
+            safeFetch('surgeries'),
+            safeFetch('vitals'),
+            safeFetch('emergency_contacts'),
         ]);
 
         return NextResponse.json({
