@@ -74,23 +74,29 @@ export async function GET(req: NextRequest) {
             return NextResponse.json({ error: 'Profile not found' }, { status: 404 });
         }
 
-        // Helper function to safely fetch table entries belonging STRICTLY to this user
+        // Helper function to safely fetch table entries belonging strictly to this user profile
         const safeFetch = async (tableName: string) => {
-            if (!userId) return [];
-            try {
-                const { data } = await supabase.from(tableName).select('*').eq('user_id', userId);
-                if (data && data.length > 0) return data;
-            } catch (_) {}
-            try {
-                const { data } = await supabase.from(tableName).select('*').eq('patient_id', userId);
-                if (data && data.length > 0) return data;
-            } catch (_) {}
-            try {
-                if (profile?.prana_id) {
-                    const { data } = await supabase.from(tableName).select('*').eq('prana_id', profile.prana_id);
+            const possibleIds = Array.from(new Set([
+                userId,
+                profile.id,
+                profile.user_id,
+                profile.prana_id
+            ].filter(Boolean)));
+
+            for (const pId of possibleIds) {
+                try {
+                    const { data } = await supabase.from(tableName).select('*').eq('user_id', pId);
                     if (data && data.length > 0) return data;
-                }
-            } catch (_) {}
+                } catch (_) {}
+                try {
+                    const { data } = await supabase.from(tableName).select('*').eq('patient_id', pId);
+                    if (data && data.length > 0) return data;
+                } catch (_) {}
+                try {
+                    const { data } = await supabase.from(tableName).select('*').eq('prana_id', pId);
+                    if (data && data.length > 0) return data;
+                } catch (_) {}
+            }
             return [];
         };
 
