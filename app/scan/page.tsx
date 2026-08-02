@@ -110,13 +110,21 @@ export default function QRScannerPage() {
               age: 19,
               gender: dbData.profile.gender || "Male",
               bloodGroup: dbData.profile.blood_group || "B+",
-              criticalAlerts: (dbData.allergies || []).map((a: any) => `${a.allergen || a.name || 'Allergy'} (${a.severity || 'Severe'})`),
-              currentMedications: (dbData.medications || []).map((m: any) => `${m.name} ${m.dose || ''}`.trim()),
-              conditions: (dbData.conditions || []).map((c: any) => c.name || c.title || c),
+              criticalAlerts: (dbData.allergies || []).map((a: any) => {
+                const name = a.allergen || a.allergy_name || a.name || 'Allergy';
+                const sev = a.severity || a.reaction || 'Severe';
+                return `${name} (${sev})`;
+              }),
+              currentMedications: (dbData.medications || []).map((m: any) => {
+                const name = m.name || m.medication_name || 'Medication';
+                const dose = m.dose || m.dosage || '';
+                return `${name} ${dose}`.trim();
+              }),
+              conditions: (dbData.conditions || []).map((c: any) => c.name || c.condition_name || c.title || c),
               devices: (dbData.devices || []).map((d: any) => d.name || d.device_name || d),
-              surgeries: (dbData.surgeries || []).map((s: any) => `${s.procedure || s.name} (${s.year || s.date || ''})`.trim()),
-              vitals: (dbData.vitals || []).map((v: any) => `${v.type || v.vital_type || 'Vital'}: ${v.value} ${v.unit || ''}`.trim()),
-              emergencyContact: dbData.contacts?.[0] ? `${dbData.contacts[0].name} • ${dbData.contacts[0].phone_number || dbData.contacts[0].phone}` : "Emergency Contact On File",
+              surgeries: (dbData.surgeries || []).map((s: any) => `${s.procedure || s.surgery_name || s.name} (${s.year || s.date || ''})`.trim()),
+              vitals: (dbData.vitals || []).map((v: any) => `${v.type || v.vital_type || 'Vital'}: ${v.value || v.reading} ${v.unit || ''}`.trim()),
+              emergencyContact: dbData.contacts?.[0] ? `${dbData.contacts[0].name || dbData.contacts[0].contact_name} • ${dbData.contacts[0].phone_number || dbData.contacts[0].phone || dbData.contacts[0].mobile}` : "Emergency Contact On File",
               digitalSignature: sig,
               source: "REAL DATABASE FETCH",
               verified: isSignatureValid,
