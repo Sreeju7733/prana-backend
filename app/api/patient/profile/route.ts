@@ -74,7 +74,7 @@ export async function GET(req: NextRequest) {
             return NextResponse.json({ error: 'Profile not found' }, { status: 404 });
         }
 
-        // Helper function to safely fetch table entries for user
+        // Helper function to safely fetch table entries belonging strictly to this user ID
         const safeFetch = async (tableName: string) => {
             try {
                 const { data } = await supabase.from(tableName).select('*').eq('user_id', userId);
@@ -82,10 +82,6 @@ export async function GET(req: NextRequest) {
             } catch (_) {}
             try {
                 const { data } = await supabase.from(tableName).select('*').eq('patient_id', userId);
-                if (data && data.length > 0) return data;
-            } catch (_) {}
-            try {
-                const { data } = await supabase.from(tableName).select('*');
                 if (data && data.length > 0) return data;
             } catch (_) {}
             return [];
