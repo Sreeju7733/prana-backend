@@ -122,8 +122,23 @@ export default function QRScannerPage() {
               }),
               conditions: (dbData.conditions || []).map((c: any) => c.name || c.condition_name || c.title || c),
               devices: (dbData.devices || []).map((d: any) => d.name || d.device_name || d),
-              surgeries: (dbData.surgeries || []).map((s: any) => `${s.procedure || s.surgery_name || s.name} (${s.year || s.date || ''})`.trim()),
-              vitals: (dbData.vitals || []).map((v: any) => `${v.type || v.vital_type || 'Vital'}: ${v.value || v.reading} ${v.unit || ''}`.trim()),
+              surgeries: (dbData.surgeries || [])
+                .map((s: any) => {
+                  const name = s.procedure || s.surgery_name || s.name || s.title;
+                  if (!name) return null;
+                  const dateStr = s.year || s.date || s.surgery_date ? ` (${s.year || s.date || s.surgery_date})` : '';
+                  return `${name}${dateStr}`;
+                })
+                .filter(Boolean),
+              vitals: (dbData.vitals || [])
+                .map((v: any) => {
+                  const label = v.vital_type || v.type || v.name || 'Vital';
+                  const val = v.value ?? v.reading ?? '';
+                  const unit = v.unit ?? '';
+                  if (!val && val !== 0) return null;
+                  return `${label}: ${val}${unit ? ' ' + unit : ''}`;
+                })
+                .filter(Boolean),
               emergencyContact: dbData.contacts?.[0] ? `${dbData.contacts[0].name || dbData.contacts[0].contact_name} • ${dbData.contacts[0].phone_number || dbData.contacts[0].phone || dbData.contacts[0].mobile}` : "Emergency Contact On File",
               digitalSignature: sig,
               source: "REAL DATABASE FETCH",
