@@ -56,14 +56,13 @@ export async function GET(req: NextRequest) {
             supabase.from('emergency_contacts').select('*'),
         ]);
 
-        // Helper filter to get rows for this profile
+        // Helper filter to get rows strictly belonging to this profile ID
         const filterUserRows = (rows: any[] | null) => {
             if (!rows) return [];
             return rows.filter((r: any) => 
-                r.user_id === uid || 
-                r.patient_id === uid || 
-                r.prana_id === profile.prana_id ||
-                !r.user_id // Include unassigned entries if schema is unpartitioned
+                (r.user_id && r.user_id === uid) || 
+                (r.patient_id && r.patient_id === uid) || 
+                (r.prana_id && r.prana_id === profile.prana_id)
             );
         };
 
