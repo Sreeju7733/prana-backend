@@ -33,16 +33,16 @@ export async function GET(req: NextRequest) {
         let profile: any = null;
 
         if (pranaId) {
-            // Public query by PRANA ID
-            const { data: foundProfile } = await supabase
+            const cleanId = pranaId.trim();
+            // Public query by PRANA ID (case-insensitive)
+            const { data: foundProfiles } = await supabase
                 .from('profiles')
                 .select('*')
-                .or(`prana_id.eq.${pranaId},id.eq.${pranaId}`)
-                .single();
+                .or(`prana_id.ilike.${cleanId},id.eq.${cleanId}`);
 
-            if (foundProfile) {
-                profile = foundProfile;
-                userId = foundProfile.id;
+            if (foundProfiles && foundProfiles.length > 0) {
+                profile = foundProfiles[0];
+                userId = profile.id;
             }
         } else {
             // Verify user via JWT token
