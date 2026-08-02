@@ -127,12 +127,12 @@ export default function QRScannerPage() {
           }
         })
         .catch(() => {
-          // OFFLINE DECRYPTION FALLBACK
+          // OFFLINE DECRYPTION FALLBACK (PRANA V2 Emergency Payload)
           const offlineRecord = decryptedRecord || {
-            patientName: "Sreeju S",
-            age: 19,
-            gender: "Male",
-            bloodGroup: "B+",
+            patientName: "PATIENT PROFILE",
+            age: 0,
+            gender: "Unspecified",
+            bloodGroup: "N/A",
             criticalAlerts: [],
             currentMedications: [],
             conditions: [],
@@ -144,17 +144,17 @@ export default function QRScannerPage() {
 
           setDecryptedData({
             pid,
-            patientName: offlineRecord.patientName,
-            age: offlineRecord.age || 19,
-            gender: offlineRecord.gender || "Male",
-            bloodGroup: offlineRecord.bloodGroup,
+            patientName: offlineRecord.patientName || "PATIENT PROFILE",
+            age: offlineRecord.age || 0,
+            gender: offlineRecord.gender || "Unspecified",
+            bloodGroup: offlineRecord.bloodGroup || "N/A",
             criticalAlerts: offlineRecord.criticalAlerts || [],
             currentMedications: offlineRecord.currentMedications || [],
             conditions: offlineRecord.conditions || [],
             devices: offlineRecord.devices || [],
             surgeries: offlineRecord.surgeries || [],
             vitals: offlineRecord.vitals || [],
-            emergencyContact: offlineRecord.emergencyContact,
+            emergencyContact: offlineRecord.emergencyContact || "Emergency Relay Active",
             digitalSignature: sig,
             source: "OFFLINE QR PAYLOAD DECRYPTED",
             verified: isSignatureValid,
