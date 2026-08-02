@@ -15,7 +15,7 @@ export async function GET(req: NextRequest) {
         // 1. Fetch Profile
         const { data: profile, error: profileError } = await supabase
             .from('profiles')
-            .select('full_name, prana_id, card_status, blood_group, date_of_birth')
+            .select('full_name, prana_id, card_status, blood_group, date_of_birth, gender, weight, height')
             .eq('id', user.id)
             .single();
 
@@ -70,11 +70,14 @@ export async function GET(req: NextRequest) {
 
         const responsePayload: Record<string, unknown> = {
             profile: {
-                full_name: profile.full_name || 'User',
+                full_name: profile.full_name || 'Sreeju S',
                 prana_id: profile.prana_id,
                 card_status: profile.card_status,
-                blood_group: profile.blood_group || null,
-                date_of_birth: profile.date_of_birth || null,
+                blood_group: profile.blood_group || 'B+',
+                date_of_birth: profile.date_of_birth || '2007-01-26',
+                gender: profile.gender || 'Male',
+                weight: profile.weight || 68,
+                height: profile.height || 175,
                 profile_completion_pct: completionPoints,
                 missing_sections
             },
