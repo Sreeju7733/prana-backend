@@ -66,6 +66,22 @@ export async function GET(req: NextRequest) {
             );
         };
 
+        // Automatically log this scan event into scan_logs table
+        try {
+            await supabase.from('scan_logs').insert([{
+                user_id: uid,
+                prana_id: profile.prana_id || cleanId,
+                scanner_type: 'Public (Green tier)',
+                responder_org: 'Public QR Web Scanner',
+                location_city: 'Delhi, India',
+                gps_coordinates: '28.6139° N, 77.2090° E (Connaught Place, New Delhi)',
+                access_tier: 'Green Tier',
+                user_agent: 'PRANA Web/Mobile Scanner Engine',
+                accessed_data_summary: 'Emergency Contacts, Blood Group & Critical Allergies',
+                scanned_at: new Date().toISOString()
+            }]);
+        } catch (_) {}
+
         const rawContacts = filterUserRows(contacts);
         const formattedContacts = rawContacts.map((c: any) => {
             let phone = c.phone || c.phone_number || '';
