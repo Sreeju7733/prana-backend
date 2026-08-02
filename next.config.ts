@@ -2,10 +2,7 @@ import type { NextConfig } from "next";
 
 const nextConfig: NextConfig = {
   /* config options here */
-  experimental: {
-    // Next.js requires the full host string including port
-    allowedDevOrigins: ['10.97.134.37:3000', '10.97.134.37'],
-  },
+  allowedDevOrigins: ['10.97.134.37:3000', '10.97.134.37'],
   async headers() {
     return [
       {

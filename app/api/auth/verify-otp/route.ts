@@ -65,9 +65,19 @@ export async function POST(req: NextRequest) {
             // User doesn't exist in profiles table -> create auth user first
             isNewUser = true;
 
+            // Format phone into valid E.164 format for Supabase Auth admin
+            let e164Phone = cleanPhone;
+            if (!e164Phone.startsWith('+')) {
+              if (e164Phone.length === 10) {
+                e164Phone = `+91${e164Phone}`;
+              } else {
+                e164Phone = `+${e164Phone}`;
+              }
+            }
+
             // Create Supabase Auth user via admin API to get valid auth.users ID
             const { data: authUserData, error: authError } = await supabase.auth.admin.createUser({
-                phone: phone,
+                phone: e164Phone,
                 phone_confirm: true,
             });
 
@@ -76,7 +86,7 @@ export async function POST(req: NextRequest) {
             if (authError || !userId) {
                 // If user already exists in auth.users but not in profiles
                 const { data: existingUsers } = await supabase.auth.admin.listUsers();
-                const foundUser = existingUsers?.users?.find(u => u.phone === phone);
+                const foundUser = existingUsers?.users?.find(u => u.phone === e164Phone || u.phone === cleanPhone);
                 if (foundUser) {
                     userId = foundUser.id;
                 } else {
