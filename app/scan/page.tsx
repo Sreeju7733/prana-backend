@@ -99,21 +99,6 @@ export default function QRScannerPage() {
         } catch (_) {}
       }
 
-      // Default offline briefing payload if encrypted blob is demo fallback
-      const offlineRecord = decryptedRecord || {
-        patientName: "Sreeju S",
-        age: 19,
-        gender: "Male",
-        bloodGroup: "B+",
-        criticalAlerts: ["Severe Penicillin Anaphylaxis", "Avoid NSAIDs / Aspirin"],
-        currentMedications: ["Metformin 500mg (Twice Daily)", "Lisinopril 10mg (Once Daily)"],
-        conditions: ["Type 2 Diabetes", "Hypertension"],
-        devices: ["Cardiac Pacemaker #PCM-8841", "Insulin Pump (Omnipod)"],
-        surgeries: ["Appendectomy (2021)", "ACL Knee Reconstruction (2023)"],
-        vitals: ["BP: 120/80 mmHg", "Pulse: 72 bpm", "SpO2: 98%", "Temp: 98.6°F"],
-        emergencyContact: "Rajesh Sharma • +91 98765 43210",
-      };
-
       // Attempt online fetch from database first
       fetch(`/api/patient/profile?prana_id=${pid}`)
         .then((res) => (res.ok ? res.json() : null))
@@ -121,19 +106,19 @@ export default function QRScannerPage() {
           if (dbData && dbData.profile) {
             setDecryptedData({
               pid: dbData.profile.prana_id || pid,
-              patientName: dbData.profile.full_name || offlineRecord.patientName,
+              patientName: dbData.profile.full_name || "Sreeju S",
               age: 19,
-              gender: dbData.profile.gender || offlineRecord.gender,
-              bloodGroup: dbData.profile.blood_group || offlineRecord.bloodGroup,
-              criticalAlerts: dbData.allergies?.map((a: any) => `${a.allergen || 'Allergy'} (${a.severity || 'Severe'})`) || offlineRecord.criticalAlerts,
-              currentMedications: dbData.medications?.map((m: any) => `${m.name} ${m.dose || ''}`) || offlineRecord.currentMedications,
-              conditions: dbData.conditions?.map((c: any) => c.name || c) || offlineRecord.conditions,
-              devices: dbData.devices?.map((d: any) => d.name || d) || offlineRecord.devices,
-              surgeries: dbData.surgeries?.map((s: any) => `${s.procedure || s.name} (${s.year || s.date || ''})`) || offlineRecord.surgeries,
-              vitals: dbData.vitals?.map((v: any) => `${v.type || 'Vital'}: ${v.value} ${v.unit || ''}`) || offlineRecord.vitals,
-              emergencyContact: dbData.contacts?.[0] ? `${dbData.contacts[0].name} • ${dbData.contacts[0].phone_number || dbData.contacts[0].phone}` : offlineRecord.emergencyContact,
+              gender: dbData.profile.gender || "Male",
+              bloodGroup: dbData.profile.blood_group || "B+",
+              criticalAlerts: (dbData.allergies || []).map((a: any) => `${a.allergen || a.name || 'Allergy'} (${a.severity || 'Severe'})`),
+              currentMedications: (dbData.medications || []).map((m: any) => `${m.name} ${m.dose || ''}`.trim()),
+              conditions: (dbData.conditions || []).map((c: any) => c.name || c.title || c),
+              devices: (dbData.devices || []).map((d: any) => d.name || d.device_name || d),
+              surgeries: (dbData.surgeries || []).map((s: any) => `${s.procedure || s.name} (${s.year || s.date || ''})`.trim()),
+              vitals: (dbData.vitals || []).map((v: any) => `${v.type || v.vital_type || 'Vital'}: ${v.value} ${v.unit || ''}`.trim()),
+              emergencyContact: dbData.contacts?.[0] ? `${dbData.contacts[0].name} • ${dbData.contacts[0].phone_number || dbData.contacts[0].phone}` : "Emergency Contact On File",
               digitalSignature: sig,
-              source: "ONLINE DATABASE FETCH",
+              source: "REAL DATABASE FETCH",
               verified: isSignatureValid,
               decryptedAt: new Date().toLocaleTimeString(),
             });
@@ -142,22 +127,36 @@ export default function QRScannerPage() {
           }
         })
         .catch(() => {
-          // OFFLINE FALLBACK: AES-256 Decrypted directly from QR payload
+          // OFFLINE DECRYPTION FALLBACK
+          const offlineRecord = decryptedRecord || {
+            patientName: "Sreeju S",
+            age: 19,
+            gender: "Male",
+            bloodGroup: "B+",
+            criticalAlerts: [],
+            currentMedications: [],
+            conditions: [],
+            devices: [],
+            surgeries: [],
+            vitals: [],
+            emergencyContact: "Emergency Relay Active",
+          };
+
           setDecryptedData({
             pid,
             patientName: offlineRecord.patientName,
             age: offlineRecord.age || 19,
             gender: offlineRecord.gender || "Male",
             bloodGroup: offlineRecord.bloodGroup,
-            criticalAlerts: offlineRecord.criticalAlerts,
-            currentMedications: offlineRecord.currentMedications,
-            conditions: offlineRecord.conditions,
-            devices: offlineRecord.devices,
-            surgeries: offlineRecord.surgeries,
-            vitals: offlineRecord.vitals,
+            criticalAlerts: offlineRecord.criticalAlerts || [],
+            currentMedications: offlineRecord.currentMedications || [],
+            conditions: offlineRecord.conditions || [],
+            devices: offlineRecord.devices || [],
+            surgeries: offlineRecord.surgeries || [],
+            vitals: offlineRecord.vitals || [],
             emergencyContact: offlineRecord.emergencyContact,
             digitalSignature: sig,
-            source: "OFFLINE AES-256 DECRYPTED FROM QR PAYLOAD",
+            source: "OFFLINE QR PAYLOAD DECRYPTED",
             verified: isSignatureValid,
             decryptedAt: new Date().toLocaleTimeString(),
           });
