@@ -99,30 +99,30 @@ export default function QRScannerPage() {
         } catch (_) {}
       }
 
-      // Attempt online fetch from database first
-      fetch(`/api/patient/profile?prana_id=${pid}`)
+      // Attempt online fetch from new dedicated scan-details API endpoint
+      fetch(`/api/card/scan-details?pid=${pid}`)
         .then((res) => (res.ok ? res.json() : null))
-        .then((dbData) => {
-          if (dbData && dbData.profile) {
+        .then((resData) => {
+          if (resData && resData.patient) {
             setDecryptedData({
-              pid: dbData.profile.prana_id || pid,
-              patientName: dbData.profile.full_name || "Sreeju S",
-              age: 19,
-              gender: dbData.profile.gender || "Male",
-              bloodGroup: dbData.profile.blood_group || "B+",
-              criticalAlerts: (dbData.allergies || []).map((a: any) => {
+              pid: resData.patient.prana_id || pid,
+              patientName: resData.patient.full_name || "Sreeju S",
+              age: resData.patient.age || 19,
+              gender: resData.patient.gender || "Male",
+              bloodGroup: resData.patient.blood_group || "B+",
+              criticalAlerts: (resData.allergies || []).map((a: any) => {
                 const name = a.allergen || a.allergy_name || a.name || 'Allergy';
                 const sev = a.severity || a.reaction || 'Severe';
                 return `${name} (${sev})`;
               }),
-              currentMedications: (dbData.medications || []).map((m: any) => {
+              currentMedications: (resData.medications || []).map((m: any) => {
                 const name = m.name || m.medication_name || 'Medication';
                 const dose = m.dose || m.dosage || '';
                 return `${name} ${dose}`.trim();
               }),
-              conditions: (dbData.conditions || []).map((c: any) => c.name || c.condition_name || c.title || c),
-              devices: (dbData.devices || []).map((d: any) => d.name || d.device_name || d),
-              surgeries: (dbData.surgeries || [])
+              conditions: (resData.conditions || []).map((c: any) => c.name || c.condition_name || c.title || c),
+              devices: (resData.devices || []).map((d: any) => d.name || d.device_name || d),
+              surgeries: (resData.surgeries || [])
                 .map((s: any) => {
                   const name = s.procedure || s.surgery_name || s.name || s.title;
                   if (!name) return null;
@@ -130,7 +130,7 @@ export default function QRScannerPage() {
                   return `${name}${dateStr}`;
                 })
                 .filter(Boolean),
-              vitals: (dbData.vitals || [])
+              vitals: (resData.vitals || [])
                 .map((v: any) => {
                   const label = v.vital_type || v.type || v.name || 'Vital';
                   const val = v.value ?? v.reading ?? '';
@@ -139,9 +139,9 @@ export default function QRScannerPage() {
                   return `${label}: ${val}${unit ? ' ' + unit : ''}`;
                 })
                 .filter(Boolean),
-              emergencyContact: dbData.contacts?.[0] ? `${dbData.contacts[0].name || dbData.contacts[0].contact_name} • ${dbData.contacts[0].phone_number || dbData.contacts[0].phone || dbData.contacts[0].mobile}` : "Emergency Contact On File",
+              emergencyContact: resData.contacts?.[0] ? `${resData.contacts[0].name || resData.contacts[0].contact_name} • ${resData.contacts[0].phone_number || resData.contacts[0].phone || resData.contacts[0].mobile}` : "Emergency Contact On File",
               digitalSignature: sig,
-              source: "REAL DATABASE FETCH",
+              source: "REAL DATABASE FETCH (SCAN-DETAILS API)",
               verified: isSignatureValid,
               decryptedAt: new Date().toLocaleTimeString(),
             });
