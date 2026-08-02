@@ -6,22 +6,23 @@ export async function GET(req: NextRequest) {
     try {
         const user = verifyToken(req);
 
-        // Fetch user's prana_id
-        const { data: profile, error: profileError } = await supabase
+        // Fetch user's profile
+        const { data: profile } = await supabase
             .from('profiles')
             .select('prana_id')
             .eq('id', user.id)
-            .single();
+            .maybeSingle();
 
-        if (profileError || !profile) {
-            return NextResponse.json({ success: false, error: 'Profile not found' }, { status: 404 });
+        const pranaId = profile?.prana_id;
+
+        let query = supabase.from('scan_logs').select('*');
+        if (pranaId) {
+            query = query.or(`user_id.eq.${user.id},prana_id.eq.${pranaId}`);
+        } else {
+            query = query.eq('user_id', user.id);
         }
 
-        const { data: scanLogs, error } = await supabase
-            .from('scan_logs')
-            .select('*')
-            .eq('prana_id', profile.prana_id)
-            .order('scanned_at', { ascending: false });
+        const { data: scanLogs, error } = await query.order('scanned_at', { ascending: false });
 
         if (error) {
             return NextResponse.json({ success: false, error: error.message }, { status: 500 });
