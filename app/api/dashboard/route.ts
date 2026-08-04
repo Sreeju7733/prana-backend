@@ -25,9 +25,9 @@ export async function GET(req: NextRequest) {
 
         // 2. Fetch Counts & Critical Allergy
         const [{ count: medsCount }, { count: allergiesCount }, { count: conditionsCount }, { data: criticalAllergies }] = await Promise.all([
-            supabase.from('medications').select('*', { count: 'exact', head: true }).eq('user_id', user.id).eq('is_active', true),
+            supabase.from('medications').select('*', { count: 'exact', head: true }).eq('user_id', user.id).or('is_active.eq.true,is_active.is.null'),
             supabase.from('allergies').select('*', { count: 'exact', head: true }).eq('user_id', user.id),
-            supabase.from('conditions').select('*', { count: 'exact', head: true }).eq('user_id', user.id).eq('status', 'active'),
+            supabase.from('conditions').select('*', { count: 'exact', head: true }).eq('user_id', user.id).or('status.eq.active,status.is.null'),
             supabase.from('allergies').select('allergen, severity').eq('user_id', user.id).eq('is_critical', true).limit(1)
         ]);
 
