@@ -29,51 +29,26 @@ export async function GET(req: NextRequest) {
             profile.prana_id
         ].filter(Boolean)));
 
-        // 2. Fetch Counts & Critical Allergy across all possible profile identifiers
-        const safeCount = async (tableName: string, activeFilter?: string) => {
-            for (const pId of possibleIds) {
-                try {
-                    let q = supabase.from(tableName).select('*', { count: 'exact', head: true }).eq('user_id', pId);
-                    if (activeFilter) q = q.or(activeFilter);
-                    const { count } = await q;
-                    if (count && count > 0) return count;
-                } catch (_) {}
-                try {
-                    let q = supabase.from(tableName).select('*', { count: 'exact', head: true }).eq('prana_id', pId);
-                    if (activeFilter) q = q.or(activeFilter);
-                    const { count } = await q;
-                    if (count && count > 0) return count;
-                } catch (_) {}
-                try {
-                    let q = supabase.from(tableName).select('*', { count: 'exact', head: true }).eq('patient_id', pId);
-                    if (activeFilter) q = q.or(activeFilter);
-                    const { count } = await q;
-                    if (count && count > 0) return count;
-                } catch (_) {}
-            }
-            return 0;
-        };
+        const filterExpr = possibleIds.map(id => `user_id.eq.${id},prana_id.eq.${id}`).join(',');
 
-        const [medsCount, allergiesCount, conditionsCount] = await Promise.all([
-            safeCount('medications', 'is_active.eq.true,is_active.is.null'),
-            safeCount('allergies'),
-            safeCount('conditions', 'status.eq.active,status.is.null'),
+        // 2. Fetch Meds, Allergies, and Conditions across all profile identifiers
+        const [{ data: medsData }, { data: allergiesData }, { data: conditionsData }] = await Promise.all([
+            supabase.from('medications').select('id, is_active').or(filterExpr).catch(() => ({ data: [] })),
+            supabase.from('allergies').select('id, allergen, severity, is_critical').or(filterExpr).catch(() => ({ data: [] })),
+            supabase.from('conditions').select('id, status').or(filterExpr).catch(() => ({ data: [] }))
         ]);
 
-        let critical_allergy: { allergen: string; severity: string } | null = null;
-        for (const pId of possibleIds) {
-            try {
-                const { data: ca } = await supabase
-                    .from('allergies')
-                    .select('allergen, severity')
-                    .or(`user_id.eq.${pId},prana_id.eq.${pId}`)
-                    .limit(1);
-                if (ca && ca.length > 0) {
-                    critical_allergy = { allergen: ca[0].allergen, severity: ca[0].severity };
-                    break;
-                }
-            } catch (_) {}
-        }
+        const activeMeds = ((medsData as any[]) || []).filter(m => m.is_active !== false);
+        const medsCount = activeMeds.length;
+
+        const allergiesList = (allergiesData as any[]) || [];
+        const allergiesCount = allergiesList.length;
+
+        const activeConditions = ((conditionsData as any[]) || []).filter(c => !c.status || c.status === 'active');
+        const conditionsCount = activeConditions.length;
+
+        const criticalOne = allergiesList.find(a => a.is_critical || (a.severity && a.severity.toLowerCase().includes('severe')));
+        const critical_allergy = criticalOne ? { allergen: criticalOne.allergen, severity: criticalOne.severity || 'Severe' } : null;
 
         // Calculate missing sections
         const missing_sections: string[] = [];
