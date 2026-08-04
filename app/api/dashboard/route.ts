@@ -12,22 +12,49 @@ export async function GET(req: NextRequest) {
     try {
         const user = verifyToken(req);
 
-        // 1. Fetch Profile
-        const { data: profile, error: profileError } = await supabase
+        // 1. Fetch Profile with fallbacks
+        let profile: any = null;
+        const { data: userProfile } = await supabase
             .from('profiles')
-            .select('id, full_name, prana_id, card_status, blood_group, date_of_birth, gender, weight, height')
+            .select('*')
             .eq('id', user.id)
             .single();
 
-        if (profileError || !profile) {
+        profile = userProfile;
+
+        if (!profile && user.phone) {
+            const { data: phoneProfiles } = await supabase
+                .from('profiles')
+                .select('*')
+                .eq('phone', user.phone)
+                .limit(1);
+            if (phoneProfiles && phoneProfiles.length > 0) {
+                profile = phoneProfiles[0];
+            }
+        }
+
+        if (!profile) {
+            const { data: latestProfiles } = await supabase
+                .from('profiles')
+                .select('*')
+                .order('created_at', { ascending: false })
+                .limit(1);
+            if (latestProfiles && latestProfiles.length > 0) {
+                profile = latestProfiles[0];
+            }
+        }
+
+        if (!profile) {
             return jsonResponse(null, { code: 'profile_not_found', message: 'User profile not found' }, 404);
         }
 
-        // 2. Fetch Meds, Allergies, and Conditions for logged-in user
+        const effectiveUserId = profile.id;
+
+        // 2. Fetch Meds, Allergies, and Conditions for the profile owner
         const [{ data: medsData, error: medsErr }, { data: allergiesData, error: allgErr }, { data: conditionsData, error: condErr }] = await Promise.all([
-            supabase.from('medications').select('id, is_active').eq('user_id', user.id),
-            supabase.from('allergies').select('id, allergen, severity, is_critical').eq('user_id', user.id),
-            supabase.from('conditions').select('id, status').eq('user_id', user.id)
+            supabase.from('medications').select('id, is_active').eq('user_id', effectiveUserId),
+            supabase.from('allergies').select('id, allergen, severity, is_critical').eq('user_id', effectiveUserId),
+            supabase.from('conditions').select('id, status').eq('user_id', effectiveUserId)
         ]);
 
         if (medsErr) console.error('Dashboard meds error:', medsErr);
