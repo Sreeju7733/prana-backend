@@ -66,21 +66,58 @@ export async function POST(req: NextRequest) {
         // Simple base64 mock encryption for phone
         const encrypted_phone = `ENC:${Buffer.from(phoneClean).toString('base64')}`;
 
-        const newContact = {
-            user_id: user.id,
-            name: body.name.trim(),
-            relationship: body.relationship.trim(),
-            phone_hash,
-            encrypted_phone,
-            is_primary: Boolean(body.is_primary),
-            notification_channels: Array.isArray(body.notification_channels) ? body.notification_channels : ['push', 'sms']
-        };
+        let existingId = body.id;
+        if (!existingId) {
+            const { data: matched } = await supabase
+                .from('emergency_contacts')
+                .select('id')
+                .eq('user_id', user.id)
+                .or(`phone_hash.eq.${phone_hash},name.ilike.${body.name.trim()}`)
+                .limit(1);
+            if (matched && matched.length > 0) {
+                existingId = matched[0].id;
+            }
+        }
 
-        const { data, error } = await supabase
-            .from('emergency_contacts')
-            .insert([newContact])
-            .select('id, name, relationship, encrypted_phone, is_primary, notification_channels, created_at')
-            .single();
+        let data: any;
+        let error: any;
+
+        if (existingId) {
+            const res = await supabase
+                .from('emergency_contacts')
+                .update({
+                    name: body.name.trim(),
+                    relationship: body.relationship.trim(),
+                    phone_hash,
+                    encrypted_phone,
+                    is_primary: Boolean(body.is_primary),
+                    updated_at: new Date().toISOString()
+                })
+                .eq('id', existingId)
+                .eq('user_id', user.id)
+                .select('id, name, relationship, encrypted_phone, is_primary, notification_channels, created_at')
+                .single();
+            data = res.data;
+            error = res.error;
+        } else {
+            const newContact = {
+                user_id: user.id,
+                name: body.name.trim(),
+                relationship: body.relationship.trim(),
+                phone_hash,
+                encrypted_phone,
+                is_primary: Boolean(body.is_primary),
+                notification_channels: Array.isArray(body.notification_channels) ? body.notification_channels : ['push', 'sms']
+            };
+
+            const res = await supabase
+                .from('emergency_contacts')
+                .insert([newContact])
+                .select('id, name, relationship, encrypted_phone, is_primary, notification_channels, created_at')
+                .single();
+            data = res.data;
+            error = res.error;
+        }
 
         if (error) {
             return NextResponse.json({ success: false, error: error.message }, { status: 500 });
