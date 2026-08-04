@@ -134,7 +134,7 @@ export async function PUT(req: NextRequest) {
         const updates = await req.json();
 
         // Update profile (whitelist allowed fields)
-        const allowedUpdates = ['full_name', 'gender', 'date_of_birth', 'blood_group', 'weight_kg', 'height_cm', 'weight', 'height', 'phone'];
+        const allowedUpdates = ['full_name', 'gender', 'date_of_birth', 'blood_group', 'weight_kg', 'height_cm', 'weight', 'height', 'phone', 'avatar_url'];
         const filteredUpdates: Record<string, unknown> = {
             updated_at: new Date().toISOString()
         };
