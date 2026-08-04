@@ -15,7 +15,7 @@ export async function GET(req: NextRequest) {
         // 1. Fetch Profile
         const { data: profile, error: profileError } = await supabase
             .from('profiles')
-            .select('full_name, prana_id, card_status, blood_group, date_of_birth, gender, weight, height')
+            .select('id, full_name, prana_id, card_status, blood_group, date_of_birth, gender, weight, height, no_known_allergies, allergies_recorded')
             .eq('id', user.id)
             .single();
 
@@ -23,17 +23,57 @@ export async function GET(req: NextRequest) {
             return jsonResponse(null, { code: 'profile_not_found', message: 'User profile not found' }, 404);
         }
 
-        // 2. Fetch Counts & Critical Allergy
-        const [{ count: medsCount }, { count: allergiesCount }, { count: conditionsCount }, { data: criticalAllergies }] = await Promise.all([
-            supabase.from('medications').select('*', { count: 'exact', head: true }).eq('user_id', user.id).or('is_active.eq.true,is_active.is.null'),
-            supabase.from('allergies').select('*', { count: 'exact', head: true }).eq('user_id', user.id),
-            supabase.from('conditions').select('*', { count: 'exact', head: true }).eq('user_id', user.id).or('status.eq.active,status.is.null'),
-            supabase.from('allergies').select('allergen, severity').eq('user_id', user.id).eq('is_critical', true).limit(1)
+        const possibleIds = Array.from(new Set([
+            user.id,
+            profile.id,
+            profile.prana_id
+        ].filter(Boolean)));
+
+        // 2. Fetch Counts & Critical Allergy across all possible profile identifiers
+        const safeCount = async (tableName: string, activeFilter?: string) => {
+            for (const pId of possibleIds) {
+                try {
+                    let q = supabase.from(tableName).select('*', { count: 'exact', head: true }).eq('user_id', pId);
+                    if (activeFilter) q = q.or(activeFilter);
+                    const { count } = await q;
+                    if (count && count > 0) return count;
+                } catch (_) {}
+                try {
+                    let q = supabase.from(tableName).select('*', { count: 'exact', head: true }).eq('prana_id', pId);
+                    if (activeFilter) q = q.or(activeFilter);
+                    const { count } = await q;
+                    if (count && count > 0) return count;
+                } catch (_) {}
+                try {
+                    let q = supabase.from(tableName).select('*', { count: 'exact', head: true }).eq('patient_id', pId);
+                    if (activeFilter) q = q.or(activeFilter);
+                    const { count } = await q;
+                    if (count && count > 0) return count;
+                } catch (_) {}
+            }
+            return 0;
+        };
+
+        const [medsCount, allergiesCount, conditionsCount] = await Promise.all([
+            safeCount('medications', 'is_active.eq.true,is_active.is.null'),
+            safeCount('allergies'),
+            safeCount('conditions', 'status.eq.active,status.is.null'),
         ]);
 
-        const critical_allergy = (criticalAllergies && criticalAllergies.length > 0)
-            ? { allergen: criticalAllergies[0].allergen, severity: criticalAllergies[0].severity }
-            : null;
+        let critical_allergy: { allergen: string; severity: string } | null = null;
+        for (const pId of possibleIds) {
+            try {
+                const { data: ca } = await supabase
+                    .from('allergies')
+                    .select('allergen, severity')
+                    .or(`user_id.eq.${pId},prana_id.eq.${pId}`)
+                    .limit(1);
+                if (ca && ca.length > 0) {
+                    critical_allergy = { allergen: ca[0].allergen, severity: ca[0].severity };
+                    break;
+                }
+            } catch (_) {}
+        }
 
         // Calculate missing sections
         const missing_sections: string[] = [];
