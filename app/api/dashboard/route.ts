@@ -29,9 +29,19 @@ export async function GET(req: NextRequest) {
             profile.prana_id
         ].filter(Boolean)));
 
-        const filterExpr = possibleIds.map(id => `user_id.eq.${id},prana_id.eq.${id}`).join(',');
+        const uuidRegex = /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i;
+        const orConditions: string[] = [];
+        for (const id of possibleIds) {
+            const str = String(id);
+            if (uuidRegex.test(str)) {
+                orConditions.push(`user_id.eq.${str}`);
+            } else {
+                orConditions.push(`prana_id.eq.${str}`);
+            }
+        }
+        const filterExpr = orConditions.length > 0 ? orConditions.join(',') : `user_id.eq.${user.id}`;
 
-        // 2. Fetch Meds, Allergies, and Conditions across all profile identifiers
+        // 2. Fetch Meds, Allergies, and Conditions across valid profile identifiers
         const [{ data: medsData }, { data: allergiesData }, { data: conditionsData }] = await Promise.all([
             supabase.from('medications').select('id, is_active').or(filterExpr).catch(() => ({ data: [] })),
             supabase.from('allergies').select('id, allergen, severity, is_critical').or(filterExpr).catch(() => ({ data: [] })),
