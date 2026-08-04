@@ -144,11 +144,15 @@ export async function PUT(req: NextRequest) {
                 filteredUpdates[key] = updates[key];
             }
         }
-        if (updates.weight !== undefined && updates.weight_kg === undefined) {
-            filteredUpdates.weight_kg = updates.weight;
+        if (updates.weight_kg !== undefined || updates.weight !== undefined) {
+            const val = updates.weight_kg ?? updates.weight;
+            filteredUpdates.weight_kg = val;
+            filteredUpdates.weight = val;
         }
-        if (updates.height !== undefined && updates.height_cm === undefined) {
-            filteredUpdates.height_cm = updates.height;
+        if (updates.height_cm !== undefined || updates.height !== undefined) {
+            const val = updates.height_cm ?? updates.height;
+            filteredUpdates.height_cm = val;
+            filteredUpdates.height = val;
         }
 
         let targetId = user.id;
