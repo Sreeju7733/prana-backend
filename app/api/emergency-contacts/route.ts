@@ -72,7 +72,7 @@ export async function POST(req: NextRequest) {
                 .from('emergency_contacts')
                 .select('id')
                 .eq('user_id', user.id)
-                .or(`phone_hash.eq.${phone_hash},name.ilike.${body.name.trim()}`)
+                .eq('phone_hash', phone_hash)
                 .limit(1);
             if (matched && matched.length > 0) {
                 existingId = matched[0].id;
@@ -131,9 +131,9 @@ export async function POST(req: NextRequest) {
 
         return NextResponse.json({
             success: true,
-            message: 'Emergency contact added successfully',
-            data
-        }, { status: 201 });
+            message: 'Emergency contact processed successfully',
+            data: formattedData
+        }, { status: 200 });
 
     } catch (error: unknown) {
         const message = error instanceof Error ? error.message : 'Unauthorized access';
