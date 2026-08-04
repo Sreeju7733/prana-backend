@@ -23,41 +23,27 @@ export async function GET(req: NextRequest) {
             return jsonResponse(null, { code: 'profile_not_found', message: 'User profile not found' }, 404);
         }
 
-        const possibleIds = Array.from(new Set([
-            user.id,
-            profile.id,
-            profile.prana_id
-        ].filter(Boolean)));
-
-        const uuidRegex = /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i;
-        const orConditions: string[] = [];
-        for (const id of possibleIds) {
-            const str = String(id);
-            if (uuidRegex.test(str)) {
-                orConditions.push(`user_id.eq.${str}`);
-            } else {
-                orConditions.push(`prana_id.eq.${str}`);
-            }
-        }
-        const filterExpr = orConditions.length > 0 ? orConditions.join(',') : `user_id.eq.${user.id}`;
-
-        // 2. Fetch Meds, Allergies, and Conditions across valid profile identifiers
-        const [{ data: medsData }, { data: allergiesData }, { data: conditionsData }] = await Promise.all([
-            supabase.from('medications').select('id, is_active').or(filterExpr).catch(() => ({ data: [] })),
-            supabase.from('allergies').select('id, allergen, severity, is_critical').or(filterExpr).catch(() => ({ data: [] })),
-            supabase.from('conditions').select('id, status').or(filterExpr).catch(() => ({ data: [] }))
+        // 2. Fetch Meds, Allergies, and Conditions for logged-in user
+        const [{ data: medsData, error: medsErr }, { data: allergiesData, error: allgErr }, { data: conditionsData, error: condErr }] = await Promise.all([
+            supabase.from('medications').select('id, is_active').eq('user_id', user.id),
+            supabase.from('allergies').select('id, allergen, severity, is_critical').eq('user_id', user.id),
+            supabase.from('conditions').select('id, status').eq('user_id', user.id)
         ]);
 
-        const activeMeds = ((medsData as any[]) || []).filter(m => m.is_active !== false);
+        if (medsErr) console.error('Dashboard meds error:', medsErr);
+        if (allgErr) console.error('Dashboard allergies error:', allgErr);
+        if (condErr) console.error('Dashboard conditions error:', condErr);
+
+        const activeMeds = (medsData || []).filter((m: any) => m.is_active !== false);
         const medsCount = activeMeds.length;
 
-        const allergiesList = (allergiesData as any[]) || [];
+        const allergiesList = allergiesData || [];
         const allergiesCount = allergiesList.length;
 
-        const activeConditions = ((conditionsData as any[]) || []).filter(c => !c.status || c.status === 'active');
+        const activeConditions = (conditionsData || []).filter((c: any) => !c.status || c.status === 'active');
         const conditionsCount = activeConditions.length;
 
-        const criticalOne = allergiesList.find(a => a.is_critical || (a.severity && a.severity.toLowerCase().includes('severe')));
+        const criticalOne = allergiesList.find((a: any) => a.is_critical || (a.severity && a.severity.toLowerCase().includes('severe')));
         const critical_allergy = criticalOne ? { allergen: criticalOne.allergen, severity: criticalOne.severity || 'Severe' } : null;
 
         // Calculate missing sections
