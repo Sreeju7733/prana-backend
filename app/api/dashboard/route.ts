@@ -89,8 +89,8 @@ export async function GET(req: NextRequest) {
                 gender: profile.gender || 'Male',
                 weight: profile.weight || 68,
                 height: profile.height || 175,
-                no_known_allergies: Boolean(profile.no_known_allergies),
-                allergies_recorded: Boolean(profile.allergies_recorded),
+                no_known_allergies: false,
+                allergies_recorded: allergiesCount > 0,
                 profile_completion_pct: completionPoints,
                 missing_sections
             },
