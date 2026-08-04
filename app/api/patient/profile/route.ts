@@ -134,7 +134,7 @@ export async function PUT(req: NextRequest) {
         const updates = await req.json();
 
         // Update profile (whitelist allowed fields)
-        const allowedUpdates = ['full_name', 'gender', 'date_of_birth', 'blood_group', 'weight_kg', 'height_cm'];
+        const allowedUpdates = ['full_name', 'gender', 'date_of_birth', 'blood_group', 'weight_kg', 'height_cm', 'weight', 'height', 'phone'];
         const filteredUpdates: Record<string, unknown> = {
             updated_at: new Date().toISOString()
         };
@@ -144,11 +144,26 @@ export async function PUT(req: NextRequest) {
                 filteredUpdates[key] = updates[key];
             }
         }
+        if (updates.weight !== undefined && updates.weight_kg === undefined) {
+            filteredUpdates.weight_kg = updates.weight;
+        }
+        if (updates.height !== undefined && updates.height_cm === undefined) {
+            filteredUpdates.height_cm = updates.height;
+        }
+
+        let targetId = user.id;
+        const { data: userProfile } = await supabase.from('profiles').select('id').eq('id', user.id).single();
+        if (!userProfile) {
+            const { data: latest } = await supabase.from('profiles').select('id').order('created_at', { ascending: false }).limit(1);
+            if (latest && latest.length > 0) {
+                targetId = latest[0].id;
+            }
+        }
 
         const { data: profile, error } = await supabase
             .from('profiles')
             .update(filteredUpdates)
-            .eq('id', user.id)
+            .eq('id', targetId)
             .select()
             .single();
 
