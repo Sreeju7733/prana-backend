@@ -1,17 +1,17 @@
 -- Add avatar_url column to profiles table
 ALTER TABLE public.profiles ADD COLUMN IF NOT EXISTS avatar_url TEXT;
 
--- Create avatars storage bucket if not exists
+-- Create uploads storage bucket if not exists
 INSERT INTO storage.buckets (id, name, public) 
-VALUES ('avatars', 'avatars', true)
+VALUES ('uploads', 'uploads', true)
 ON CONFLICT (id) DO NOTHING;
 
--- Storage policies for avatars bucket
-CREATE POLICY "Public avatars access" ON storage.objects
-    FOR SELECT USING (bucket_id = 'avatars');
+-- Storage policies for uploads bucket
+CREATE POLICY "Public uploads access" ON storage.objects
+    FOR SELECT USING (bucket_id = 'uploads');
 
-CREATE POLICY "Authenticated users can upload avatars" ON storage.objects
-    FOR INSERT WITH CHECK (bucket_id = 'avatars');
+CREATE POLICY "Authenticated users can upload files" ON storage.objects
+    FOR INSERT WITH CHECK (bucket_id = 'uploads');
 
-CREATE POLICY "Users can update their own avatars" ON storage.objects
-    FOR UPDATE USING (bucket_id = 'avatars');
+CREATE POLICY "Users can update their own uploads" ON storage.objects
+    FOR UPDATE USING (bucket_id = 'uploads');

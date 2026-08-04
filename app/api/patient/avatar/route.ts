@@ -44,7 +44,7 @@ export async function POST(req: NextRequest) {
                 const buffer = Buffer.from(base64Data, 'base64');
 
                 const { data: uploadData, error: uploadError } = await supabase.storage
-                    .from('avatars')
+                    .from('uploads')
                     .upload(fileName, buffer, {
                         contentType,
                         upsert: true,
@@ -52,7 +52,7 @@ export async function POST(req: NextRequest) {
 
                 if (!uploadError && uploadData) {
                     const { data: publicUrlData } = supabase.storage
-                        .from('avatars')
+                        .from('uploads')
                         .getPublicUrl(fileName);
                     
                     finalUrl = publicUrlData.publicUrl;
