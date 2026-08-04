@@ -15,7 +15,7 @@ export async function GET(req: NextRequest) {
         // 1. Fetch Profile
         const { data: profile, error: profileError } = await supabase
             .from('profiles')
-            .select('id, full_name, prana_id, card_status, blood_group, date_of_birth, gender, weight, height, no_known_allergies, allergies_recorded')
+            .select('id, full_name, prana_id, card_status, blood_group, date_of_birth, gender, weight, height')
             .eq('id', user.id)
             .single();
 
