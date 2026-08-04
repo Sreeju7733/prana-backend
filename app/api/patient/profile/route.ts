@@ -112,7 +112,13 @@ export async function GET(req: NextRequest) {
 
         return NextResponse.json({
             success: true,
-            profile,
+            profile: profile ? {
+                ...profile,
+                weight: profile.weight_kg ?? profile.weight,
+                weight_kg: profile.weight_kg ?? profile.weight,
+                height: profile.height_cm ?? profile.height,
+                height_cm: profile.height_cm ?? profile.height,
+            } : null,
             allergies: allergies || [],
             medications: medications || [],
             conditions: conditions || [],
@@ -133,8 +139,8 @@ export async function PUT(req: NextRequest) {
         const user = verifyToken(req);
         const updates = await req.json();
 
-        // Update profile (whitelist allowed fields)
-        const allowedUpdates = ['full_name', 'gender', 'date_of_birth', 'blood_group', 'weight_kg', 'height_cm', 'weight', 'height', 'phone', 'avatar_url'];
+        // Update profile (whitelist allowed fields in profiles DB table)
+        const allowedUpdates = ['full_name', 'gender', 'date_of_birth', 'blood_group', 'weight_kg', 'height_cm', 'phone', 'avatar_url'];
         const filteredUpdates: Record<string, unknown> = {
             updated_at: new Date().toISOString()
         };
@@ -147,12 +153,10 @@ export async function PUT(req: NextRequest) {
         if (updates.weight_kg !== undefined || updates.weight !== undefined) {
             const val = updates.weight_kg ?? updates.weight;
             filteredUpdates.weight_kg = val;
-            filteredUpdates.weight = val;
         }
         if (updates.height_cm !== undefined || updates.height !== undefined) {
             const val = updates.height_cm ?? updates.height;
             filteredUpdates.height_cm = val;
-            filteredUpdates.height = val;
         }
 
         let targetId = user.id;
@@ -175,7 +179,15 @@ export async function PUT(req: NextRequest) {
             throw error;
         }
 
-        return NextResponse.json({ success: true, data: profile });
+        const normalizedProfile = profile ? {
+            ...profile,
+            weight: profile.weight_kg ?? profile.weight,
+            weight_kg: profile.weight_kg ?? profile.weight,
+            height: profile.height_cm ?? profile.height,
+            height_cm: profile.height_cm ?? profile.height,
+        } : null;
+
+        return NextResponse.json({ success: true, data: normalizedProfile, profile: normalizedProfile });
 
     } catch (error: unknown) {
         const message = error instanceof Error ? error.message : 'Unauthorized access';
