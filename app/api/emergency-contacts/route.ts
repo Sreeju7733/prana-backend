@@ -90,8 +90,7 @@ export async function POST(req: NextRequest) {
                     relationship: body.relationship.trim(),
                     phone_hash,
                     encrypted_phone,
-                    is_primary: Boolean(body.is_primary),
-                    updated_at: new Date().toISOString()
+                    is_primary: Boolean(body.is_primary)
                 })
                 .eq('id', existingId)
                 .eq('user_id', user.id)

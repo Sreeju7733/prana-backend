@@ -37,9 +37,7 @@ export async function PUT(
             return NextResponse.json({ success: false, error: 'Forbidden: You do not own this record' }, { status: 403 });
         }
 
-        const updates: Record<string, unknown> = {
-            updated_at: new Date().toISOString()
-        };
+        const updates: Record<string, unknown> = {};
 
         if (body.name && typeof body.name === 'string') {
             updates.name = body.name.trim();
