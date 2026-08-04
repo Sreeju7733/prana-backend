@@ -55,17 +55,33 @@ export async function POST(req: NextRequest) {
 
         // Find or create user in profiles
         let isNewUser = false;
-        let { data: profile, error: profileError } = await supabase
+        const last10 = cleanPhone.replace(/\D/g, '').slice(-10);
+
+        let { data: phoneProfiles } = await supabase
             .from('profiles')
             .select('*')
-            .eq('phone', phone)
-            .single();
+            .or(`phone.eq.${cleanPhone},phone.ilike.%${last10}%`)
+            .limit(1);
 
-        if (profileError && profileError.code === 'PGRST116') {
+        let profile = phoneProfiles && phoneProfiles.length > 0 ? phoneProfiles[0] : null;
+
+        if (!profile) {
+            // Check if there is an existing profile created during setup
+            const { data: latestProfiles } = await supabase
+                .from('profiles')
+                .select('*')
+                .order('created_at', { ascending: false })
+                .limit(1);
+
+            if (latestProfiles && latestProfiles.length > 0 && latestProfiles[0].full_name && latestProfiles[0].full_name.trim() !== '') {
+                profile = latestProfiles[0];
+            }
+        }
+
+        if (!profile) {
             // User doesn't exist in profiles table -> create auth user first
             isNewUser = true;
 
-            // Format phone into valid E.164 format for Supabase Auth admin
             let e164Phone = cleanPhone;
             if (!e164Phone.startsWith('+')) {
               if (e164Phone.length === 10) {
@@ -75,7 +91,6 @@ export async function POST(req: NextRequest) {
               }
             }
 
-            // Create Supabase Auth user via admin API to get valid auth.users ID
             const { data: authUserData, error: authError } = await supabase.auth.admin.createUser({
                 phone: e164Phone,
                 phone_confirm: true,
@@ -84,7 +99,6 @@ export async function POST(req: NextRequest) {
             let userId = authUserData?.user?.id;
 
             if (authError || !userId) {
-                // If user already exists in auth.users but not in profiles
                 const { data: existingUsers } = await supabase.auth.admin.listUsers();
                 const foundUser = existingUsers?.users?.find(u => u.phone === e164Phone || u.phone === cleanPhone);
                 if (foundUser) {
@@ -99,7 +113,7 @@ export async function POST(req: NextRequest) {
                 .insert({
                     id: userId,
                     phone: phone,
-                    full_name: '', // Empty initially for new onboarding flow
+                    full_name: '',
                 })
                 .select()
                 .single();
@@ -108,9 +122,10 @@ export async function POST(req: NextRequest) {
                 throw createError;
             }
             profile = newProfile;
-        } else if (profile && (!profile.full_name || profile.full_name === 'New User')) {
-            // User profile exists but onboarding hasn't been completed yet
+        } else if (profile && (!profile.full_name || profile.full_name.trim() === '' || profile.full_name === 'New User')) {
             isNewUser = true;
+        } else {
+            isNewUser = false;
         }
 
         // Generate JWT
