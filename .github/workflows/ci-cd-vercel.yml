@@ -40,26 +40,6 @@ jobs:
           SUPABASE_SERVICE_ROLE_KEY: ${{ secrets.SUPABASE_SERVICE_ROLE_KEY }}
           JWT_SECRET: ${{ secrets.JWT_SECRET }}
 
-  deploy-preview:
-    name: Deploy Preview to Vercel
-    needs: ci
-    if: github.event_name == 'pull_request'
-    runs-on: ubuntu-latest
-
-    steps:
-      - name: Checkout repository
-        uses: actions/checkout@v4
-
-      - name: Deploy preview to Vercel
-        uses: amondnet/vercel-action@v25
-        with:
-          vercel-token: ${{ secrets.VERCEL_TOKEN }}
-          vercel-org-id: ${{ secrets.VERCEL_ORG_ID }}
-          vercel-project-id: ${{ secrets.VERCEL_PROJECT_ID }}
-          vercel-version: latest
-          github-token: ${{ secrets.GITHUB_TOKEN }}
-          github-comment: true
-
   deploy-production:
     name: Deploy Production to Vercel
     needs: ci
@@ -79,3 +59,4 @@ jobs:
           vercel-version: latest
           vercel-args: "--prod"
           github-token: ${{ secrets.GITHUB_TOKEN }}
+          github-comment: false # <--- Prevents trying to post PR comments on direct push runs
