@@ -7,7 +7,7 @@ export async function GET(req: NextRequest) {
         const user = verifyToken(req);
 
         // Fetch briefing
-        let { data: briefing, error } = await supabase
+        const { data: initialBriefing, error } = await supabase
             .from('medical_briefings')
             .select('*')
             .eq('user_id', user.id)
@@ -18,6 +18,8 @@ export async function GET(req: NextRequest) {
         if (error) {
             return NextResponse.json({ success: false, error: error.message }, { status: 500 });
         }
+
+        let briefing = initialBriefing;
 
         // Generate fallback briefing if missing
         if (!briefing) {

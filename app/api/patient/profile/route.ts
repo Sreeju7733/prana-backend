@@ -30,7 +30,7 @@ export async function GET(req: NextRequest) {
         const pranaId = searchParams.get('prana_id');
 
         let userId: string | null = null;
-        let profile: any = null;
+        let profile: Record<string, unknown> | null = null;
 
         if (pranaId) {
             const cleanId = pranaId.trim();
@@ -42,7 +42,7 @@ export async function GET(req: NextRequest) {
 
             if (foundProfiles && foundProfiles.length > 0) {
                 profile = foundProfiles[0];
-                userId = profile.id;
+                userId = typeof profile.id === 'string' ? profile.id : null;
             } else {
                 // Fallback to latest registered active profile if PRANA ID format differs
                 const { data: latestProfiles } = await supabase
@@ -53,7 +53,7 @@ export async function GET(req: NextRequest) {
 
                 if (latestProfiles && latestProfiles.length > 0) {
                     profile = latestProfiles[0];
-                    userId = profile.id;
+                    userId = typeof profile.id === 'string' ? profile.id : null;
                 }
             }
         } else {
@@ -87,15 +87,21 @@ export async function GET(req: NextRequest) {
                 try {
                     const { data } = await supabase.from(tableName).select('*').eq('user_id', pId);
                     if (data && data.length > 0) return data;
-                } catch (_) {}
+                } catch {
+                    // Ignore fetch error
+                }
                 try {
                     const { data } = await supabase.from(tableName).select('*').eq('patient_id', pId);
                     if (data && data.length > 0) return data;
-                } catch (_) {}
+                } catch {
+                    // Ignore fetch error
+                }
                 try {
                     const { data } = await supabase.from(tableName).select('*').eq('prana_id', pId);
                     if (data && data.length > 0) return data;
-                } catch (_) {}
+                } catch {
+                    // Ignore fetch error
+                }
             }
             return [];
         };
