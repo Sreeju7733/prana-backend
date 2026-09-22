@@ -47,7 +47,7 @@ export async function POST(req: NextRequest) {
             .eq('user_id', user.id)
             .maybeSingle();
 
-        let resultData: any = null;
+        let resultData: Record<string, unknown> | null = null;
 
         if (existing?.id) {
             const { data, error } = await supabase

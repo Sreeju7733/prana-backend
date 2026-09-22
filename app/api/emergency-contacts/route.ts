@@ -7,7 +7,9 @@ function decodePhone(encryptedPhone: string | null): string {
     if (encryptedPhone.startsWith('ENC:')) {
         try {
             return Buffer.from(encryptedPhone.substring(4), 'base64').toString('utf-8');
-        } catch (_) {}
+        } catch {
+            // Ignore decode failure
+        }
     }
     return encryptedPhone;
 }
@@ -27,7 +29,7 @@ export async function GET(req: NextRequest) {
             return NextResponse.json({ success: false, error: error.message }, { status: 500 });
         }
 
-        const formatted = (data || []).map((c: any) => ({
+        const formatted = (data || []).map((c: { encrypted_phone: string | null; [key: string]: unknown }) => ({
             ...c,
             phone: decodePhone(c.encrypted_phone),
             phone_number: decodePhone(c.encrypted_phone),
@@ -79,8 +81,7 @@ export async function POST(req: NextRequest) {
             }
         }
 
-        let data: any;
-        let error: any;
+        let contactResult: { data: Record<string, unknown> | null; error: { message: string } | null };
 
         if (existingId) {
             const res = await supabase
@@ -96,8 +97,7 @@ export async function POST(req: NextRequest) {
                 .eq('user_id', user.id)
                 .select('id, name, relationship, encrypted_phone, is_primary, notification_channels, created_at')
                 .single();
-            data = res.data;
-            error = res.error;
+            contactResult = { data: res.data as Record<string, unknown> | null, error: res.error };
         } else {
             const newContact = {
                 user_id: user.id,
@@ -114,16 +114,15 @@ export async function POST(req: NextRequest) {
                 .insert([newContact])
                 .select('id, name, relationship, encrypted_phone, is_primary, notification_channels, created_at')
                 .single();
-            data = res.data;
-            error = res.error;
+            contactResult = { data: res.data as Record<string, unknown> | null, error: res.error };
         }
 
-        if (error) {
-            return NextResponse.json({ success: false, error: error.message }, { status: 500 });
+        if (contactResult.error) {
+            return NextResponse.json({ success: false, error: contactResult.error.message }, { status: 500 });
         }
 
         const formattedData = {
-            ...data,
+            ...contactResult.data,
             phone: phoneClean,
             phone_number: phoneClean,
         };
