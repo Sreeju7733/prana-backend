@@ -2,7 +2,6 @@ import { NextRequest, NextResponse } from 'next/server';
 import { supabase, verifyToken } from '@/lib/auth';
 
 const ALLOWED_VITAL_TYPES = ['bp_systolic', 'bp_diastolic', 'heart_rate', 'temperature', 'glucose', 'spo2', 'weight'];
-const ALLOWED_SOURCES = ['manual', 'health_connect', 'wearable'];
 
 // GET /api/vitals - List recorded vitals history or latest per type
 export async function GET(req: NextRequest) {
