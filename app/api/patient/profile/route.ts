@@ -31,7 +31,6 @@ export async function GET(req: NextRequest) {
 
         let userId: string | null = null;
         let profile: Record<string, unknown> | null = null;
-        let _profile: Record<string, unknown> | null = null;
 
         if (pranaId) {
             const cleanId = pranaId.trim();
@@ -42,8 +41,9 @@ export async function GET(req: NextRequest) {
                 .or(`prana_id.ilike.%${cleanId}%,id.eq.${cleanId}`);
 
             if (foundProfiles && foundProfiles.length > 0) {
-                profile = foundProfiles[0];
-                userId = typeof profile.id === 'string' ? profile.id : null;
+                const p = foundProfiles[0];
+                profile = p;
+                userId = typeof p.id === 'string' ? p.id : null;
             } else {
                 // Fallback to latest registered active profile if PRANA ID format differs
                 const { data: latestProfiles } = await supabase
@@ -53,8 +53,9 @@ export async function GET(req: NextRequest) {
                     .limit(1);
 
                 if (latestProfiles && latestProfiles.length > 0) {
-                    profile = latestProfiles[0];
-                    userId = typeof profile.id === 'string' ? profile.id : null;
+                    const p = latestProfiles[0];
+                    profile = p;
+                    userId = typeof p.id === 'string' ? p.id : null;
                 }
             }
         } else {

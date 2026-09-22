@@ -40,6 +40,10 @@ interface ScanApiResData {
   contacts?: Record<string, unknown>[];
 }
 
+function asString(v: unknown): string {
+  return v === null || v === undefined ? "" : String(v);
+}
+
 export default function QRScannerPage() {
   const [decryptedData, setDecryptedData] = useState<DecryptedPatientData | null>(null);
   const [isDecrypting, setIsDecrypting] = useState(false);
@@ -47,6 +51,186 @@ export default function QRScannerPage() {
   const [scannerActive, setScannerActive] = useState(true);
 
   const scannerRef = useRef<Html5QrcodeScanner | null>(null);
+
+  const handleDecryptPayload = useCallback((payload: string) => {
+    setIsDecrypting(true);
+    setError(null);
+
+    try {
+      // PRANA_V2 Format: PRANA_V2|PID:xxxx|YK:xxxx|SIG:xxxx
+      if (!payload.startsWith("PRANA_V2")) {
+        throw new Error("Invalid QR Code: Not a PRANA V2 Security Payload.");
+      }
+
+      const parts = payload.split("|");
+      const kv: Record<string, string> = {};
+      parts.forEach((p) => {
+        const idx = p.indexOf(":");
+        if (idx !== -1) {
+          const key = p.substring(0, idx);
+          const val = p.substring(idx + 1);
+          kv[key] = val;
+        }
+      });
+
+      const pid = kv["PID"] || "PRAN-2973CAC1";
+      const ykBlob = kv["YK"] || kv["DATA"] || "";
+      const sig = kv["SIG"] || "ed25519_valid";
+
+      // 1. Ed25519 Signature Verification
+      const isSignatureValid = Boolean(sig && sig.length > 5);
+
+      // 2. AES-256 Decryption with ECC Key Unsealing
+      let decryptedRecord: Partial<DecryptedPatientData> | null = null;
+      if (ykBlob) {
+        try {
+          // Derived ECC responder secret key for PID
+          const eccResponderKey = `PRANA_ECC_KEY_${pid}`;
+          const bytes = CryptoJS.AES.decrypt(ykBlob, eccResponderKey);
+          const decryptedString = bytes.toString(CryptoJS.enc.Utf8);
+          if (decryptedString) {
+            decryptedRecord = JSON.parse(decryptedString) as Partial<DecryptedPatientData>;
+          }
+        } catch {
+          // Ignore decryption failure
+        }
+      }
+
+      // Attempt online fetch from new dedicated scan-details API endpoint
+      fetch(`/api/card/scan-details?pid=${pid}`)
+        .then((res) => (res.ok ? res.json() : null))
+        .then((resData: ScanApiResData | null) => {
+          if (resData && resData.patient) {
+            setDecryptedData({
+              pid: resData.patient.prana_id || pid,
+              patientName: resData.patient.full_name || "Sreeju S",
+              age: resData.patient.age || 19,
+              gender: resData.patient.gender || "Male",
+              bloodGroup: resData.patient.blood_group || "B+",
+              criticalAlerts: (resData.allergies || []).map((a) => {
+                const name = asString(a.allergen) || asString(a.allergy_name) || asString(a.name) || 'Allergy';
+                const sev = asString(a.severity) || asString(a.reaction) || 'Severe';
+                return `${name} (${sev})`;
+              }),
+              currentMedications: (resData.medications || []).map((m) => {
+                const name = asString(m.name) || asString(m.medication_name) || 'Medication';
+                const dose = asString(m.dose) || asString(m.dosage) || '';
+                return `${name} ${dose}`.trim();
+              }),
+              conditions: (resData.conditions || []).map((c) => asString(c.name) || asString(c.condition_name) || asString(c.title) || String(c)),
+              devices: (resData.devices || []).map((d) => asString(d.name) || asString(d.device_name) || String(d)),
+              surgeries: (resData.surgeries || [])
+                .map((s) => {
+                  const name = asString(s.procedure) || asString(s.surgery_name) || asString(s.name) || asString(s.title);
+                  if (!name) return null;
+                  const dateStr = s.year || s.date || s.surgery_date ? ` (${asString(s.year || s.date || s.surgery_date)})` : '';
+                  return `${name}${dateStr}`;
+                })
+                .filter((x): x is string => Boolean(x)),
+              vitals: (resData.vitals || [])
+                .map((v) => {
+                  const label = asString(v.vital_type) || asString(v.type) || asString(v.name) || 'Vital';
+                  const val = v.value ?? v.reading ?? '';
+                  const unit = asString(v.unit);
+                  if (val === '') return null;
+                  return `${label}: ${String(val)}${unit ? ' ' + unit : ''}`;
+                })
+                .filter((x): x is string => Boolean(x)),
+              emergencyContact: resData.contacts?.[0]
+                ? `${asString(resData.contacts[0].name) || asString(resData.contacts[0].contact_name)} • ${asString(resData.contacts[0].phone_number) || asString(resData.contacts[0].phone) || asString(resData.contacts[0].mobile)}`
+                : "Emergency Contact On File",
+              digitalSignature: sig,
+              source: "REAL DATABASE FETCH (SCAN-DETAILS API)",
+              verified: isSignatureValid,
+              decryptedAt: new Date().toLocaleTimeString(),
+            });
+          } else {
+            throw new Error("Offline mode fallback");
+          }
+        })
+        .catch(() => {
+          // OFFLINE DECRYPTION FALLBACK (PRANA V2 Emergency Payload)
+          const offlineRecord = (decryptedRecord || {}) as Partial<DecryptedPatientData>;
+          setDecryptedData({
+            pid,
+            patientName: offlineRecord.patientName || "PATIENT PROFILE",
+            age: offlineRecord.age || 0,
+            gender: offlineRecord.gender || "Unspecified",
+            bloodGroup: offlineRecord.bloodGroup || "N/A",
+            criticalAlerts: offlineRecord.criticalAlerts || [],
+            currentMedications: offlineRecord.currentMedications || [],
+            conditions: offlineRecord.conditions || [],
+            devices: offlineRecord.devices || [],
+            surgeries: offlineRecord.surgeries || [],
+            vitals: offlineRecord.vitals || [],
+            emergencyContact: offlineRecord.emergencyContact || "Emergency Relay Active",
+            digitalSignature: sig,
+            source: "OFFLINE QR PAYLOAD DECRYPTED",
+            verified: isSignatureValid,
+            decryptedAt: new Date().toLocaleTimeString(),
+          });
+        })
+        .finally(() => {
+          setIsDecrypting(false);
+        });
+    } catch (err: unknown) {
+      setError(err instanceof Error ? err.message : "Failed to decrypt PRANA payload.");
+      setIsDecrypting(false);
+    }
+  }, []);
+
+  const decodeImageWithJsQR = useCallback((file: File): Promise<string> => {
+    return new Promise((resolve, reject) => {
+      const reader = new FileReader();
+      reader.onload = (e) => {
+        const img = new Image();
+        img.onload = () => {
+          const canvas = document.createElement("canvas");
+          const ctx = canvas.getContext("2d");
+          canvas.width = img.width;
+          canvas.height = img.height;
+          if (!ctx) return reject("Canvas context unavailable");
+          ctx.drawImage(img, 0, 0);
+          const imageData = ctx.getImageData(0, 0, canvas.width, canvas.height);
+          import("jsqr").then(({ default: jsQR }) => {
+            const code = jsQR(imageData.data, imageData.width, imageData.height);
+            if (code && code.data) {
+              resolve(code.data);
+            } else {
+              reject("jsQR failed");
+            }
+          }).catch(reject);
+        };
+        img.onerror = reject;
+        img.src = e.target?.result as string;
+      };
+      reader.onerror = reject;
+      reader.readAsDataURL(file);
+    });
+  }, []);
+
+  const handleImageScan = useCallback(async (file: File) => {
+    setIsDecrypting(true);
+    setError(null);
+    try {
+      // 1. Try Html5Qrcode engine first
+      const { Html5Qrcode } = await import("html5-qrcode");
+      const html5Qrcode = new Html5Qrcode("reader");
+      const decodedText = await html5Qrcode.scanFile(file, true);
+      handleDecryptPayload(decodedText);
+      setScannerActive(false);
+    } catch {
+      // 2. Fallback to jsQR canvas pixel analysis engine
+      try {
+        const decodedText = await decodeImageWithJsQR(file);
+        handleDecryptPayload(decodedText);
+        setScannerActive(false);
+      } catch {
+        setError("Could not read QR code from image. Please ensure the QR code image is clear.");
+        setIsDecrypting(false);
+      }
+    }
+  }, [handleDecryptPayload, decodeImageWithJsQR]);
 
   useEffect(() => {
     if (!scannerActive) return;
@@ -76,13 +260,12 @@ export default function QRScannerPage() {
 
     scanner.render(
       (decodedText) => {
-        setScannedPayload(decodedText);
         setError(null);
         handleDecryptPayload(decodedText);
         scanner.clear();
         setScannerActive(false);
       },
-      (errorMessage) => {
+      () => {
         // Suppress continuous frame decoding noise (NotFoundException)
       }
     );
@@ -90,199 +273,7 @@ export default function QRScannerPage() {
     return () => {
       scanner.clear().catch(() => {});
     };
-  }, [scannerActive]);
-
-  const handleDecryptPayload = (payload: string) => {
-    setIsDecrypting(true);
-    setError(null);
-
-    try {
-      // PRANA_V2 Format: PRANA_V2|PID:xxxx|YK:xxxx|SIG:xxxx
-      if (!payload.startsWith("PRANA_V2")) {
-        throw new Error("Invalid QR Code: Not a PRANA V2 Security Payload.");
-      }
-
-      const parts = payload.split("|");
-      const kv: Record<string, string> = {};
-      parts.forEach((p) => {
-        const idx = p.indexOf(":");
-        if (idx !== -1) {
-          const key = p.substring(0, idx);
-          const val = p.substring(idx + 1);
-          kv[key] = val;
-        }
-      });
-
-      const pid = kv["PID"] || "PRAN-2973CAC1";
-      const ykBlob = kv["YK"] || kv["DATA"] || "";
-      const sig = kv["SIG"] || "ed25519_valid";
-
-      // 1. Ed25519 Signature Verification
-      const isSignatureValid = Boolean(sig && sig.length > 5);
-
-      // 2. AES-256 Decryption with ECC Key Unsealing
-      let decryptedRecord: any = null;
-      if (ykBlob) {
-        try {
-          const CryptoJS = require("crypto-js");
-          // Derived ECC responder secret key for PID
-          const eccResponderKey = `PRANA_ECC_KEY_${pid}`;
-          const bytes = CryptoJS.AES.decrypt(ykBlob, eccResponderKey);
-          const decryptedString = bytes.toString(CryptoJS.enc.Utf8);
-          if (decryptedString) {
-            decryptedRecord = JSON.parse(decryptedString);
-          }
-        } catch (_) {}
-      }
-
-      // Attempt online fetch from new dedicated scan-details API endpoint
-      fetch(`/api/card/scan-details?pid=${pid}`)
-        .then((res) => (res.ok ? res.json() : null))
-        .then((resData) => {
-          if (resData && resData.patient) {
-            setDecryptedData({
-              pid: resData.patient.prana_id || pid,
-              patientName: resData.patient.full_name || "Sreeju S",
-              age: resData.patient.age || 19,
-              gender: resData.patient.gender || "Male",
-              bloodGroup: resData.patient.blood_group || "B+",
-              criticalAlerts: (resData.allergies || []).map((a: any) => {
-                const name = a.allergen || a.allergy_name || a.name || 'Allergy';
-                const sev = a.severity || a.reaction || 'Severe';
-                return `${name} (${sev})`;
-              }),
-              currentMedications: (resData.medications || []).map((m: any) => {
-                const name = m.name || m.medication_name || 'Medication';
-                const dose = m.dose || m.dosage || '';
-                return `${name} ${dose}`.trim();
-              }),
-              conditions: (resData.conditions || []).map((c: any) => c.name || c.condition_name || c.title || c),
-              devices: (resData.devices || []).map((d: any) => d.name || d.device_name || d),
-              surgeries: (resData.surgeries || [])
-                .map((s: any) => {
-                  const name = s.procedure || s.surgery_name || s.name || s.title;
-                  if (!name) return null;
-                  const dateStr = s.year || s.date || s.surgery_date ? ` (${s.year || s.date || s.surgery_date})` : '';
-                  return `${name}${dateStr}`;
-                })
-                .filter(Boolean),
-              vitals: (resData.vitals || [])
-                .map((v: any) => {
-                  const label = v.vital_type || v.type || v.name || 'Vital';
-                  const val = v.value ?? v.reading ?? '';
-                  const unit = v.unit ?? '';
-                  if (!val && val !== 0) return null;
-                  return `${label}: ${val}${unit ? ' ' + unit : ''}`;
-                })
-                .filter(Boolean),
-              emergencyContact: resData.contacts?.[0] ? `${resData.contacts[0].name || resData.contacts[0].contact_name} • ${resData.contacts[0].phone_number || resData.contacts[0].phone || resData.contacts[0].mobile}` : "Emergency Contact On File",
-              digitalSignature: sig,
-              source: "REAL DATABASE FETCH (SCAN-DETAILS API)",
-              verified: isSignatureValid,
-              decryptedAt: new Date().toLocaleTimeString(),
-            });
-          } else {
-            throw new Error("Offline mode fallback");
-          }
-        })
-        .catch(() => {
-          // OFFLINE DECRYPTION FALLBACK (PRANA V2 Emergency Payload)
-          const offlineRecord = decryptedRecord || {
-            patientName: "PATIENT PROFILE",
-            age: 0,
-            gender: "Unspecified",
-            bloodGroup: "N/A",
-            criticalAlerts: [],
-            currentMedications: [],
-            conditions: [],
-            devices: [],
-            surgeries: [],
-            vitals: [],
-            emergencyContact: "Emergency Relay Active",
-          };
-
-          setDecryptedData({
-            pid,
-            patientName: offlineRecord.patientName || "PATIENT PROFILE",
-            age: offlineRecord.age || 0,
-            gender: offlineRecord.gender || "Unspecified",
-            bloodGroup: offlineRecord.bloodGroup || "N/A",
-            criticalAlerts: offlineRecord.criticalAlerts || [],
-            currentMedications: offlineRecord.currentMedications || [],
-            conditions: offlineRecord.conditions || [],
-            devices: offlineRecord.devices || [],
-            surgeries: offlineRecord.surgeries || [],
-            vitals: offlineRecord.vitals || [],
-            emergencyContact: offlineRecord.emergencyContact || "Emergency Relay Active",
-            digitalSignature: sig,
-            source: "OFFLINE QR PAYLOAD DECRYPTED",
-            verified: isSignatureValid,
-            decryptedAt: new Date().toLocaleTimeString(),
-          });
-        })
-        .finally(() => {
-          setIsDecrypting(false);
-        });
-    } catch (err: any) {
-      setError(err.message || "Failed to decrypt PRANA payload.");
-      setIsDecrypting(false);
-    }
-  };
-
-  const decodeImageWithJsQR = (file: File): Promise<string> => {
-    return new Promise((resolve, reject) => {
-      const reader = new FileReader();
-      reader.onload = (e) => {
-        const img = new Image();
-        img.onload = () => {
-          const canvas = document.createElement("canvas");
-          const ctx = canvas.getContext("2d");
-          canvas.width = img.width;
-          canvas.height = img.height;
-          if (!ctx) return reject("Canvas context unavailable");
-          ctx.drawImage(img, 0, 0);
-          const imageData = ctx.getImageData(0, 0, canvas.width, canvas.height);
-          import("jsqr").then(({ default: jsQR }) => {
-            const code = jsQR(imageData.data, imageData.width, imageData.height);
-            if (code && code.data) {
-              resolve(code.data);
-            } else {
-              reject("jsQR failed");
-            }
-          }).catch(reject);
-        };
-        img.onerror = reject;
-        img.src = e.target?.result as string;
-      };
-      reader.onerror = reject;
-      reader.readAsDataURL(file);
-    });
-  };
-
-  const handleImageScan = async (file: File) => {
-    setIsDecrypting(true);
-    setError(null);
-    try {
-      // 1. Try Html5Qrcode engine first
-      const { Html5Qrcode } = await import("html5-qrcode");
-      const html5Qrcode = new Html5Qrcode("reader");
-      const decodedText = await html5Qrcode.scanFile(file, true);
-      setScannedPayload(decodedText);
-      handleDecryptPayload(decodedText);
-      setScannerActive(false);
-    } catch (_) {
-      // 2. Fallback to jsQR canvas pixel analysis engine
-      try {
-        const decodedText = await decodeImageWithJsQR(file);
-        setScannedPayload(decodedText);
-        handleDecryptPayload(decodedText);
-        setScannerActive(false);
-      } catch (err: any) {
-        setError("Could not read QR code from image. Please ensure the QR code image is clear.");
-        setIsDecrypting(false);
-      }
-    }
-  };
+  }, [scannerActive, handleDecryptPayload]);
 
   useEffect(() => {
     const handlePaste = (e: ClipboardEvent) => {
@@ -301,7 +292,6 @@ export default function QRScannerPage() {
           item.getAsString((text) => {
             const val = text.trim();
             if (val.startsWith("PRANA_V2")) {
-              setScannedPayload(val);
               handleDecryptPayload(val);
               setScannerActive(false);
             }
@@ -312,10 +302,9 @@ export default function QRScannerPage() {
 
     window.addEventListener("paste", handlePaste);
     return () => window.removeEventListener("paste", handlePaste);
-  }, []);
+  }, [handleImageScan, handleDecryptPayload]);
 
   const restartScanner = () => {
-    setScannedPayload(null);
     setDecryptedData(null);
     setError(null);
     setScannerActive(true);
@@ -375,7 +364,6 @@ export default function QRScannerPage() {
                     onKeyDown={(e) => {
                       if (e.key === "Enter" && e.currentTarget.value) {
                         const val = e.currentTarget.value.trim();
-                        setScannedPayload(val);
                         handleDecryptPayload(val);
                         setScannerActive(false);
                       }

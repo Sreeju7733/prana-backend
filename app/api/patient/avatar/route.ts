@@ -60,7 +60,7 @@ export async function POST(req: NextRequest) {
                     // Fallback to storing raw base64 data string
                     finalUrl = imageBase64;
                 }
-            } catch (_) {
+            } catch {
                 finalUrl = imageBase64;
             }
         }

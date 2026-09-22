@@ -19,14 +19,14 @@ export async function GET() {
         }
 
         // Perform a lightweight database query to test connection
-        const { data: _, error } = await supabase.from('profiles').select('count', { count: 'exact', head: true });
+        const result = await supabase.from('profiles').select('count', { count: 'exact', head: true });
 
-        if (error) {
+        if (result.error) {
             return NextResponse.json({
                 connected: false,
-                error: error.message,
-                code: error.code,
-                hint: error.hint
+                error: result.error.message,
+                code: result.error.code,
+                hint: result.error.hint
             }, { status: 500 });
         }
 

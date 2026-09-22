@@ -22,13 +22,11 @@ function normalizeAllergenName(rawName: string): string {
 export async function generateEmergencySummary(userId: string): Promise<SummaryResult> {
     try {
         const [
-            { data: _profile },
             { data: rawAllergies },
             { data: rawMeds },
             { data: rawConditions },
             { data: contacts }
         ] = await Promise.all([
-            supabase.from('profiles').select('full_name, blood_group').eq('id', userId).single(),
             supabase.from('allergies').select('*').eq('user_id', userId),
             // Case 7: Only fetch active medications (is_active = true)
             supabase.from('medications').select('*').eq('user_id', userId).eq('is_active', true),
