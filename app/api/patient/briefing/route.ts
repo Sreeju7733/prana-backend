@@ -7,7 +7,7 @@ export async function GET(req: NextRequest) {
         const user = verifyToken(req);
 
         // Fetch briefing
-        const { data: initialBriefing, error } = await supabase
+        const { data: initialBriefing, error: err } = await supabase
             .from('medical_briefings')
             .select('*')
             .eq('user_id', user.id)
@@ -15,7 +15,7 @@ export async function GET(req: NextRequest) {
             .limit(1)
             .maybeSingle();
 
-        if (error) {
+        if (err) {
             return NextResponse.json({ success: false, error: error.message }, { status: 500 });
         }
 

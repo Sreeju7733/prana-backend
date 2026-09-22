@@ -19,7 +19,7 @@ export async function GET() {
         }
 
         // Perform a lightweight database query to test connection
-        const { error } = await supabase.from('profiles').select('count', { count: 'exact', head: true });
+        const { data: _, error } = await supabase.from('profiles').select('count', { count: 'exact', head: true });
 
         if (error) {
             return NextResponse.json({

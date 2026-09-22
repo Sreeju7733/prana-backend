@@ -14,7 +14,7 @@ export async function GET(req: NextRequest) {
             .maybeSingle();
 
         if (error && error.code !== 'PGRST116') {
-            console.error('Fetch insurance error:', error);
+            console.error('Fetch insurance error:', error.message || error);
         }
 
         return NextResponse.json({ success: true, data: data || null }, { status: 200 });

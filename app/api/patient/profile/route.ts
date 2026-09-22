@@ -31,6 +31,7 @@ export async function GET(req: NextRequest) {
 
         let userId: string | null = null;
         let profile: Record<string, unknown> | null = null;
+        let _profile: Record<string, unknown> | null = null;
 
         if (pranaId) {
             const cleanId = pranaId.trim();
