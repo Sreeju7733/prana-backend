@@ -1,11 +1,47 @@
 "use client";
 
-import { useEffect, useState, useRef } from "react";
+import { useEffect, useState, useRef, useCallback } from "react";
 import { Html5QrcodeScanner } from "html5-qrcode";
+import CryptoJS from "crypto-js";
+
+interface DecryptedPatientData {
+  pid: string;
+  patientName: string;
+  age: number;
+  gender: string;
+  bloodGroup: string;
+  criticalAlerts: string[];
+  currentMedications: string[];
+  conditions: string[];
+  devices: string[];
+  surgeries: string[];
+  vitals: string[];
+  emergencyContact: string;
+  digitalSignature: string;
+  source: string;
+  verified: boolean;
+  decryptedAt: string;
+}
+
+interface ScanApiResData {
+  patient?: {
+    prana_id?: string;
+    full_name?: string;
+    age?: number;
+    gender?: string;
+    blood_group?: string;
+  };
+  allergies?: Record<string, unknown>[];
+  medications?: Record<string, unknown>[];
+  conditions?: Record<string, unknown>[];
+  devices?: Record<string, unknown>[];
+  surgeries?: Record<string, unknown>[];
+  vitals?: Record<string, unknown>[];
+  contacts?: Record<string, unknown>[];
+}
 
 export default function QRScannerPage() {
-  const [scannedPayload, setScannedPayload] = useState<string | null>(null);
-  const [decryptedData, setDecryptedData] = useState<any | null>(null);
+  const [decryptedData, setDecryptedData] = useState<DecryptedPatientData | null>(null);
   const [isDecrypting, setIsDecrypting] = useState(false);
   const [error, setError] = useState<string | null>(null);
   const [scannerActive, setScannerActive] = useState(true);

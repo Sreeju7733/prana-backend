@@ -119,7 +119,7 @@ export async function POST(req: NextRequest) {
         const validVitalType = normalizeVitalType(rawType);
         const numVal = typeof body.value === 'number' ? body.value : (parseFloat(String(body.value)) || 0);
 
-        const newRecord: Record<string, any> = {
+        const newRecord: Record<string, string | number> = {
             user_id: user.id,
             vital_type: validVitalType,
             value: numVal,

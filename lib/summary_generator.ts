@@ -22,7 +22,7 @@ function normalizeAllergenName(rawName: string): string {
 export async function generateEmergencySummary(userId: string): Promise<SummaryResult> {
     try {
         const [
-            { data: profile },
+            { data: _profile },
             { data: rawAllergies },
             { data: rawMeds },
             { data: rawConditions },
@@ -38,7 +38,14 @@ export async function generateEmergencySummary(userId: string): Promise<SummaryR
         ]);
 
         // Case 10: Deduplicate and normalize allergies (case-insensitive deduplication)
-        const allergyMap = new Map<string, any>();
+        interface AllergyRecord {
+            allergen?: string;
+            name?: string;
+            severity?: string;
+            is_critical?: boolean;
+            [key: string]: unknown;
+        }
+        const allergyMap = new Map<string, AllergyRecord>();
         if (rawAllergies) {
             for (const a of rawAllergies) {
                 const rawName = String(a.allergen || a.name || '').trim();
