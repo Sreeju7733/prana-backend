@@ -13,7 +13,7 @@ export async function GET(req: NextRequest) {
         const user = verifyToken(req);
 
         // 1. Fetch Profile with fallbacks
-        let profile: any = null;
+        let profile: Record<string, unknown> | null = null;
         const { data: userProfile } = await supabase
             .from('profiles')
             .select('*')
@@ -61,16 +61,16 @@ export async function GET(req: NextRequest) {
         if (allgErr) console.error('Dashboard allergies error:', allgErr);
         if (condErr) console.error('Dashboard conditions error:', condErr);
 
-        const activeMeds = (medsData || []).filter((m: any) => m.is_active !== false);
+        const activeMeds = (medsData || []).filter((m: { is_active?: boolean | null }) => m.is_active !== false);
         const medsCount = activeMeds.length;
 
-        const allergiesList = allergiesData || [];
+        const allergiesList = (allergiesData || []) as Array<{ id: string; allergen: string; severity?: string | null; is_critical?: boolean | null }>;
         const allergiesCount = allergiesList.length;
 
-        const activeConditions = (conditionsData || []).filter((c: any) => !c.status || c.status === 'active');
+        const activeConditions = (conditionsData || []).filter((c: { status?: string | null }) => !c.status || c.status === 'active');
         const conditionsCount = activeConditions.length;
 
-        const criticalOne = allergiesList.find((a: any) => a.is_critical || (a.severity && a.severity.toLowerCase().includes('severe')));
+        const criticalOne = allergiesList.find((a) => a.is_critical || (a.severity && a.severity.toLowerCase().includes('severe')));
         const critical_allergy = criticalOne ? { allergen: criticalOne.allergen, severity: criticalOne.severity || 'Severe' } : null;
 
         // Calculate missing sections

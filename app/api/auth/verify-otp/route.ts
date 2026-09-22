@@ -57,7 +57,7 @@ export async function POST(req: NextRequest) {
         let isNewUser = false;
         const last10 = cleanPhone.replace(/\D/g, '').slice(-10);
 
-        let { data: phoneProfiles } = await supabase
+        const { data: phoneProfiles } = await supabase
             .from('profiles')
             .select('*')
             .or(`phone.eq.${cleanPhone},phone.ilike.%${last10}%`)

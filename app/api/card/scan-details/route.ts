@@ -57,9 +57,9 @@ export async function GET(req: NextRequest) {
         ]);
 
         // Helper filter to get rows strictly belonging to this profile ID
-        const filterUserRows = (rows: any[] | null) => {
+        const filterUserRows = <T extends Record<string, unknown>>(rows: T[] | null): T[] => {
             if (!rows) return [];
-            return rows.filter((r: any) => 
+            return rows.filter((r) => 
                 (r.user_id && r.user_id === uid) || 
                 (r.patient_id && r.patient_id === uid) || 
                 (r.prana_id && r.prana_id === profile.prana_id)
@@ -80,15 +80,19 @@ export async function GET(req: NextRequest) {
                 accessed_data_summary: 'Emergency Contacts, Blood Group & Critical Allergies',
                 scanned_at: new Date().toISOString()
             }]);
-        } catch (_) {}
+        } catch {
+            // Silently ignore scan logging failure
+        }
 
         const rawContacts = filterUserRows(contacts);
-        const formattedContacts = rawContacts.map((c: any) => {
-            let phone = c.phone || c.phone_number || '';
-            if (!phone && c.encrypted_phone && c.encrypted_phone.startsWith('ENC:')) {
+        const formattedContacts = rawContacts.map((c) => {
+            let phone = (typeof c.phone === 'string' ? c.phone : '') || (typeof c.phone_number === 'string' ? c.phone_number : '');
+            if (!phone && typeof c.encrypted_phone === 'string' && c.encrypted_phone.startsWith('ENC:')) {
                 try {
                     phone = Buffer.from(c.encrypted_phone.substring(4), 'base64').toString('utf-8');
-                } catch (_) {}
+                } catch {
+                    // Ignore decode failure
+                }
             }
             return {
                 ...c,
@@ -115,7 +119,8 @@ export async function GET(req: NextRequest) {
             contacts: formattedContacts,
         }, { status: 200 });
 
-    } catch (err: any) {
-        return NextResponse.json({ error: err.message || 'Server error' }, { status: 500 });
+    } catch (err: unknown) {
+        const message = err instanceof Error ? err.message : 'Server error';
+        return NextResponse.json({ error: message }, { status: 500 });
     }
 }

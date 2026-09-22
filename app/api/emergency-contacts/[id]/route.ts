@@ -7,7 +7,9 @@ function decodePhone(encryptedPhone: string | null): string {
     if (encryptedPhone.startsWith('ENC:')) {
         try {
             return Buffer.from(encryptedPhone.substring(4), 'base64').toString('utf-8');
-        } catch (_) {}
+        } catch {
+            // Ignore decode error
+        }
     }
     return encryptedPhone;
 }
