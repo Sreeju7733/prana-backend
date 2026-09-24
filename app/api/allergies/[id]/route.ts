@@ -3,7 +3,7 @@ import { supabase, verifyToken } from '@/lib/auth';
 
 const ALLOWED_SEVERITIES = ['mild', 'moderate', 'severe', 'life_threatening'];
 
-// PATCH /api/allergies/:id - Update an existing allergy record (Owner only)
+// PATCH /api/allergies/:id - Update allergy (supports client_uuid upsert)
 export async function PATCH(
     req: NextRequest,
     context: { params: Promise<{ id: string }> }
@@ -13,12 +13,32 @@ export async function PATCH(
         const { id } = await context.params;
         const body = await req.json();
 
-        // Check ownership first
-        const { data: existing, error: fetchError } = await supabase
+        // Find by server ID or client_uuid
+        let existing: any;
+        let fetchError: any;
+
+        const resById = await supabase
             .from('allergies')
-            .select('id, user_id')
+            .select('id, user_id, client_uuid')
             .eq('id', id)
             .single();
+
+        if (resById.data) {
+            existing = resById.data;
+            fetchError = resById.error;
+        } else if (body.client_uuid) {
+            const resByClient = await supabase
+                .from('allergies')
+                .select('id, user_id, client_uuid')
+                .eq('client_uuid', body.client_uuid)
+                .eq('user_id', user.id)
+                .single();
+            existing = resByClient.data;
+            fetchError = resByClient.error;
+        } else {
+            existing = null;
+            fetchError = new Error('Not found');
+        }
 
         if (fetchError || !existing) {
             return NextResponse.json({ success: false, error: 'Allergy record not found' }, { status: 404 });
@@ -28,53 +48,29 @@ export async function PATCH(
             return NextResponse.json({ success: false, error: 'Forbidden: You do not own this record' }, { status: 403 });
         }
 
-        // Validate patch fields
-        if (body.allergen !== undefined) {
-            if (typeof body.allergen !== 'string' || body.allergen.trim() === '') {
-                return NextResponse.json({ success: false, error: 'allergen must be a non-empty string' }, { status: 400 });
-            }
-            if (body.allergen.length > 255) {
-                return NextResponse.json({ success: false, error: 'allergen cannot exceed 255 characters' }, { status: 400 });
-            }
-        }
-
         if (body.severity !== undefined && body.severity !== null && !ALLOWED_SEVERITIES.includes(body.severity)) {
             return NextResponse.json({ success: false, error: `severity must be one of: ${ALLOWED_SEVERITIES.join(', ')}` }, { status: 400 });
-        }
-
-        if (body.date_diagnosed) {
-            const dateRegex = /^\d{4}-\d{2}-\d{2}$/;
-            if (!dateRegex.test(body.date_diagnosed) || isNaN(Date.parse(body.date_diagnosed))) {
-                return NextResponse.json({ success: false, error: 'date_diagnosed must be a valid ISO date (YYYY-MM-DD)' }, { status: 400 });
-            }
-
-            const diagnosedDate = new Date(body.date_diagnosed);
-            const today = new Date();
-            today.setHours(23, 59, 59, 999);
-            if (diagnosedDate > today) {
-                return NextResponse.json({ success: false, error: 'date_diagnosed cannot be in the future' }, { status: 400 });
-            }
         }
 
         const updates: Record<string, unknown> = {
             updated_at: new Date().toISOString()
         };
 
-        const allowedFields = ['allergen', 'severity', 'reaction_description', 'date_diagnosed', 'is_critical'];
+        const allowedFields = ['allergen', 'severity', 'reaction_description', 'date_diagnosed', 'is_critical', 'client_uuid'];
         for (const field of allowedFields) {
             if (body[field] !== undefined) {
-                if (field === 'allergen') {
-                    updates.allergen = body.allergen.trim();
-                } else {
-                    updates[field] = body[field];
-                }
+                updates[field] = field === 'allergen' ? String(body[field]).trim() : body[field];
             }
         }
+
+        const whereClause = body.client_uuid
+            ? { client_uuid: body.client_uuid, user_id: user.id }
+            : { id };
 
         const { data, error } = await supabase
             .from('allergies')
             .update(updates)
-            .eq('id', id)
+            .match(whereClause)
             .select()
             .single();
 
@@ -94,7 +90,7 @@ export async function PATCH(
     }
 }
 
-// DELETE /api/allergies/:id - Remove an allergy record (Owner only)
+// DELETE /api/allergies/:id
 export async function DELETE(
     req: NextRequest,
     context: { params: Promise<{ id: string }> }
@@ -103,7 +99,6 @@ export async function DELETE(
         const user = verifyToken(req);
         const { id } = await context.params;
 
-        // Check ownership first
         const { data: existing, error: fetchError } = await supabase
             .from('allergies')
             .select('id, user_id')
@@ -127,10 +122,7 @@ export async function DELETE(
             return NextResponse.json({ success: false, error: error.message }, { status: 500 });
         }
 
-        return NextResponse.json({
-            success: true,
-            message: 'Allergy record deleted successfully'
-        }, { status: 200 });
+        return NextResponse.json({ success: true, message: 'Allergy record deleted successfully' }, { status: 200 });
 
     } catch (error: unknown) {
         const message = error instanceof Error ? error.message : 'Unauthorized access';
