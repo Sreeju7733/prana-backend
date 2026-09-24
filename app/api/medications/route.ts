@@ -23,7 +23,7 @@ export async function GET(req: NextRequest) {
     }
 }
 
-// POST /api/medications - Add a new medication record
+// POST /api/medications - Upsert a medication record (supports client_uuid)
 export async function POST(req: NextRequest) {
     try {
         const user = verifyToken(req);
@@ -36,7 +36,7 @@ export async function POST(req: NextRequest) {
         const doseString = body.dose || (body.dose_value && body.dose_unit ? `${body.dose_value} ${body.dose_unit}` : body.dose_value || body.dose_unit || 'As prescribed');
         const frequencyString = body.frequency || 'Daily';
 
-        const newRecord = {
+        const record = {
             user_id: user.id,
             name: body.name.trim(),
             generic_name: body.generic_name || null,
@@ -47,32 +47,32 @@ export async function POST(req: NextRequest) {
             reason: body.reason ? String(body.reason).trim() : null,
             prescribed_by: body.prescribed_by || null,
             prescribed_date: body.prescribed_date || null,
-            is_active: true,
-            encrypted_prescription_url: body.encrypted_prescription_url || null
+            is_active: body.is_active !== undefined ? body.is_active : true,
+            encrypted_prescription_url: body.encrypted_prescription_url || null,
+            client_uuid: body.id || null,
+            updated_at: new Date().toISOString()
         };
 
-        let { data, error } = await supabase
-            .from('medications')
-            .insert([newRecord])
-            .select()
-            .single();
+        let data: any;
+        let error: any;
 
-        if (error && (error.message.includes('column') || error.code === 'PGRST204' || error.code === '42703')) {
-            // Fallback for older table schema without extra columns
-            const fallbackRecord = {
-                user_id: user.id,
-                name: body.name.trim(),
-                dose: doseString.trim(),
-                frequency: frequencyString.trim(),
-                is_active: true,
-            };
-            const fallbackResult = await supabase
+        // If client_uuid is provided, upsert; otherwise insert new
+        if (body.id) {
+            const res = await supabase
                 .from('medications')
-                .insert([fallbackRecord])
+                .upsert(record, { onConflict: 'client_uuid' })
                 .select()
                 .single();
-            data = fallbackResult.data;
-            error = fallbackResult.error;
+            data = res.data;
+            error = res.error;
+        } else {
+            const res = await supabase
+                .from('medications')
+                .insert([record])
+                .select()
+                .single();
+            data = res.data;
+            error = res.error;
         }
 
         if (error) {
@@ -81,9 +81,9 @@ export async function POST(req: NextRequest) {
 
         return NextResponse.json({
             success: true,
-            message: 'Medication record added successfully',
+            message: body.id ? 'Medication updated successfully' : 'Medication record added successfully',
             data
-        }, { status: 201 });
+        }, { status: body.id ? 200 : 201 });
     } catch (error: unknown) {
         const message = error instanceof Error ? error.message : 'Unauthorized access';
         return NextResponse.json({ success: false, error: message }, { status: 401 });

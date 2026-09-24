@@ -26,13 +26,12 @@ export async function GET(req: NextRequest) {
     }
 }
 
-// POST /api/allergies - Create a new allergy record
+// POST /api/allergies - Upsert a allergy record (supports client_uuid)
 export async function POST(req: NextRequest) {
     try {
         const user = verifyToken(req);
         const body = await req.json();
 
-        // Validation
         if (!body.allergen || typeof body.allergen !== 'string' || body.allergen.trim() === '') {
             return NextResponse.json({ data: null, error: { code: 'validation_failed', message: 'allergen is required and must be a non-empty string' } }, { status: 400 });
         }
@@ -47,52 +46,43 @@ export async function POST(req: NextRequest) {
 
         const allergenClean = body.allergen.trim();
 
-        // Duplicate Check (409 Conflict)
-        const { data: existingAllergy } = await supabase
-            .from('allergies')
-            .select('id, allergen')
-            .eq('user_id', user.id)
-            .ilike('allergen', allergenClean)
-            .maybeSingle();
-
-        if (existingAllergy) {
-            return NextResponse.json({
-                data: null,
-                error: {
-                    code: 'duplicate_entry',
-                    message: `Allergy '${allergenClean}' already exists. Please update the existing record instead of creating a duplicate.`,
-                    existing_id: existingAllergy.id
-                }
-            }, { status: 409 });
-        }
-
-        if (body.date_diagnosed) {
-            const dateRegex = /^\d{4}-\d{2}-\d{2}$/;
-            if (!dateRegex.test(body.date_diagnosed) || isNaN(Date.parse(body.date_diagnosed))) {
-                return NextResponse.json({ data: null, error: { code: 'validation_failed', message: 'date_diagnosed must be a valid ISO date (YYYY-MM-DD)' } }, { status: 400 });
-            }
-        }
-
-        const newRecord = {
+        const record = {
             user_id: user.id,
             allergen: allergenClean,
             severity: body.severity || null,
-            reaction_description: body.reaction_description || null,
-            date_diagnosed: body.date_diagnosed || null,
-            is_critical: Boolean(body.is_critical)
+            reaction_description: body.reaction_description || body.reaction || null,
+            date_diagnosed: body.date_diagnosed || body.diagnosed_at || null,
+            is_critical: Boolean(body.is_critical),
+            client_uuid: body.id || null,
+            updated_at: new Date().toISOString()
         };
 
-        const { data, error } = await supabase
-            .from('allergies')
-            .insert([newRecord])
-            .select()
-            .single();
+        let data: any;
+        let error: any;
+
+        if (body.id) {
+            const res = await supabase
+                .from('allergies')
+                .upsert(record, { onConflict: 'client_uuid' })
+                .select()
+                .single();
+            data = res.data;
+            error = res.error;
+        } else {
+            const res = await supabase
+                .from('allergies')
+                .insert([record])
+                .select()
+                .single();
+            data = res.data;
+            error = res.error;
+        }
 
         if (error) {
             return NextResponse.json({ data: null, error: { code: 'insert_failed', message: error.message } }, { status: 500 });
         }
 
-        return NextResponse.json({ data, error: null }, { status: 201 });
+        return NextResponse.json({ data, error: null }, { status: body.id ? 200 : 201 });
 
     } catch (error: unknown) {
         const message = error instanceof Error ? error.message : 'Unauthorized access';
