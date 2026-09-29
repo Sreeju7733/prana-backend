@@ -3,8 +3,8 @@
  * Handles Base45 decoding, Ed25519 verification, X25519 decryption, and unpacking
  */
 
-import { x25519, ed25519 } from '@noble/curves/ed25519';
-import { randomBytes } from '@noble/curves/utils';
+import { x25519, ed25519 } from '@noble/curves/ed25519.js';
+import { randomBytes } from '@noble/curves/utils.js';
 import * as crypto from 'crypto';
 import { unpack, type UnpackedData } from '@/lib/prana-qr/unpack';
 

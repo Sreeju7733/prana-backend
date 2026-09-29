@@ -9,8 +9,8 @@
  * QR format: header(47 bytes) + encrypted_data(variable) + signature(32 bytes)
  */
 
-import { x25519, ed25519 } from '@noble/curves/ed25519';
-import { randomBytes } from '@noble/curves/utils';
+import { x25519, ed25519 } from '@noble/curves/ed25519.js';
+import { randomBytes } from '@noble/curves/utils.js';
 import { pack, type PatientData } from './pack';
 import { base45Encode } from './base45';
 import { type QrHeader, buildQrHeader } from './base45';
