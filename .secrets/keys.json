@@ -1,0 +1,13 @@
+{
+  "responder": {
+    "publicKey": "57162a9ad884c997d60ebecadec151b847fd7461033c58f5293cb2e46b2be132",
+    "privateKey": "96158a7563c887a3f555065b776e24a4fcaa08915cf6acb0357434700b40f851",
+    "version": 1,
+    "expiresAt": 1821878864
+  },
+  "signing": {
+    "publicKey": "547aaf4f9089d27e7a4c4a71b968b49f839cc0866400bf7d1750d5764d923363",
+    "privateKey": "285f2f7eb1117b1fc975a9bf1c3b6ee24524764fa7da719f0f028e9b82a47e92",
+    "version": 1
+  }
+}

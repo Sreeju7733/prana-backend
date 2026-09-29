@@ -1,20 +1,8 @@
 import { NextRequest, NextResponse } from 'next/server';
 import { supabase, verifyToken } from '@/lib/auth';
+import { encrypt, decrypt, isEncrypted } from '@/lib/crypto/field-encryption';
 
-// Helper to decode encrypted_phone column
-function decodePhone(encryptedPhone: string | null): string {
-    if (!encryptedPhone) return '';
-    if (encryptedPhone.startsWith('ENC:')) {
-        try {
-            return Buffer.from(encryptedPhone.substring(4), 'base64').toString('utf-8');
-        } catch {
-            // Ignore decode failure
-        }
-    }
-    return encryptedPhone;
-}
-
-// GET /api/emergency-contacts - Fetch emergency contacts list
+// GET /api/emergency-contacts
 export async function GET(req: NextRequest) {
     try {
         const user = verifyToken(req);
@@ -31,8 +19,8 @@ export async function GET(req: NextRequest) {
 
         const formatted = (data || []).map((c: { encrypted_phone: string | null; [key: string]: unknown }) => ({
             ...c,
-            phone: decodePhone(c.encrypted_phone),
-            phone_number: decodePhone(c.encrypted_phone),
+            phone: c.encrypted_phone ? decrypt(c.encrypted_phone) : '',
+            phone_number: c.encrypted_phone ? decrypt(c.encrypted_phone) : '',
         }));
 
         return NextResponse.json({ success: true, data: formatted }, { status: 200 });
@@ -43,7 +31,7 @@ export async function GET(req: NextRequest) {
     }
 }
 
-// POST /api/emergency-contacts - Add new emergency contact
+// POST /api/emergency-contacts
 export async function POST(req: NextRequest) {
     try {
         const user = verifyToken(req);
@@ -52,11 +40,9 @@ export async function POST(req: NextRequest) {
         if (!body.name || typeof body.name !== 'string' || body.name.trim() === '') {
             return NextResponse.json({ success: false, error: 'name is required' }, { status: 400 });
         }
-
         if (!body.relationship || typeof body.relationship !== 'string' || body.relationship.trim() === '') {
             return NextResponse.json({ success: false, error: 'relationship is required' }, { status: 400 });
         }
-
         if (!body.phone || typeof body.phone !== 'string' || body.phone.trim() === '') {
             return NextResponse.json({ success: false, error: 'phone is required' }, { status: 400 });
         }
@@ -64,9 +50,9 @@ export async function POST(req: NextRequest) {
         const phoneClean = body.phone.trim();
         const crypto = await import('crypto');
         const phone_hash = crypto.createHash('sha256').update(phoneClean).digest('hex');
-
-        // Simple base64 mock encryption for phone
-        const encrypted_phone = `ENC:${Buffer.from(phoneClean).toString('base64')}`;
+        
+        // Real AES-256-GCM encryption
+        const encrypted_phone = encrypt(phoneClean);
 
         let existingId = body.id;
         if (!existingId) {
@@ -121,16 +107,14 @@ export async function POST(req: NextRequest) {
             return NextResponse.json({ success: false, error: contactResult.error.message }, { status: 500 });
         }
 
-        const formattedData = {
-            ...contactResult.data,
-            phone: phoneClean,
-            phone_number: phoneClean,
-        };
-
         return NextResponse.json({
             success: true,
             message: 'Emergency contact processed successfully',
-            data: formattedData
+            data: {
+                ...contactResult.data,
+                phone: phoneClean,
+                phone_number: phoneClean,
+            }
         }, { status: 200 });
 
     } catch (error: unknown) {
