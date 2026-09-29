@@ -1,7 +1,12 @@
 import type { NextConfig } from "next";
 
 const nextConfig: NextConfig = {
-  allowedDevOrigins: ['10.97.134.37:3000', '10.97.134.37'],
+  allowedDevOrigins: [
+    '10.97.134.37:3000',
+    '10.97.134.37',
+    'diesel-checklist-surplus-salary.trycloudflare.com',
+    '*.trycloudflare.com',
+  ],
   async headers() {
     return [
       {
