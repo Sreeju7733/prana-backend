@@ -3,8 +3,8 @@
  * PRANA QR Round-trip Test
  */
 
-import { pack, type PatientData } from './pack.js';
-import { unpack } from './unpack.js';
+import { pack, type PatientData } from './pack';
+import { unpack } from './unpack';
 
 const testData: PatientData = {
   pranaId: 'PRAN-2973CAC',

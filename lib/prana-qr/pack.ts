@@ -21,7 +21,7 @@ import {
   getFrequencyIndex,
   getNoteIndex,
   getFlagIndex,
-} from './codebook.js';
+} from './codebook';
 
 export interface PackedData {
   bytes: Uint8Array;

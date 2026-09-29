@@ -15,7 +15,7 @@ import {
   PRESET_NOTES,
   BLOOD_GROUPS,
   GENDERS,
-} from './codebook.js';
+} from './codebook';
 
 export interface UnpackedData {
   version: number;

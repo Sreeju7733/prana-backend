@@ -13,9 +13,9 @@ import {
   buildQr,
   qrToBase45,
   type QrHeader 
-} from './encrypt.js';
-import { pack, type PatientData } from './pack.js';
-import { unpack } from './unpack.js';
+} from './encrypt';
+import { pack, type PatientData } from './pack';
+import { unpack } from './unpack';
 
 const testData: PatientData = {
   pranaId: 'PRAN-2973CAC',

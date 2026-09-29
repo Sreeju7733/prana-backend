@@ -1,4 +1,4 @@
-import { type PatientData } from './pack.js';
+import { type PatientData } from './pack';
 
 // ─── Base45 Encoding (RFC 9246) ──────────────────────────────────────────────
 const BASE45_CHARS = '0123456789ABCDEFGHIJKLMNOPQRSTUVWXYZ $%*+-./:';
