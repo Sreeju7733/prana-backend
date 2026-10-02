@@ -94,7 +94,7 @@ export default function HospitalLoginPage() {
             </div>
             <h1 className="text-xl font-bold text-slate-900 tracking-tight">Hospital Clinical Login</h1>
             <p className="text-xs text-slate-500">
-              Authenticate your accredited medical facility and duty physician credentials to access universal patient EHR records.
+              Sign in with your accredited hospital facility ID and access password.
             </p>
           </div>
 
@@ -154,11 +154,6 @@ export default function HospitalLoginPage() {
           </div>
         </div>
       </div>
-
-      {/* Footer */}
-      <footer className="h-12 border-t border-slate-200 bg-white flex items-center justify-center text-xs text-slate-500">
-        PRANA Healthcare Cryptographic Access Protocol • National Health Authority Compliance
-      </footer>
     </div>
   );
 }
