@@ -49,12 +49,46 @@ export async function GET(req: NextRequest) {
 }
 
 // ─── POST /api/revocations ──────────────────────────────────────────────────
-// Suspend a card (called by patient or admin)
+// Suspend / reactivate a card or log scan entry
 export async function POST(req: NextRequest) {
   try {
-    const user = verifyToken(req);
     const body = await req.json();
-    const action = body.action; // 'suspend' or 'reactivate'
+    const action = body.action; // 'suspend', 'reactivate', or 'log_scan'
+
+    if (action === 'log_scan' || body.prana_id && !action) {
+      if (!body.prana_id) {
+        return NextResponse.json({ success: false, error: 'prana_id is required' }, { status: 400 });
+      }
+
+      const scanEntry = {
+        prana_id: body.prana_id,
+        responder_id: body.responder_id || null,
+        location_city: body.location_city || null,
+        location_country: body.location_country || null,
+        gps_coordinates: body.gps_coordinates || null,
+        scanner_type: body.scanner_type || 'web',
+        user_agent: body.user_agent || null,
+        access_tier: body.access_tier || 'Green Tier',
+        accessed_data_summary: body.accessed_data_summary || null,
+      };
+
+      const { data, error } = await supabase
+        .from('scan_logs')
+        .insert([scanEntry])
+        .select('id, prana_id, scanned_at')
+        .single();
+
+      if (error) {
+        return NextResponse.json({ success: false, error: error.message }, { status: 500 });
+      }
+
+      return NextResponse.json({
+        success: true,
+        data,
+      }, { status: 201 });
+    }
+
+    const user = verifyToken(req);
 
     const { data: profile, error } = await supabase
       .from('profiles')
@@ -69,7 +103,7 @@ export async function POST(req: NextRequest) {
     if (action === 'suspend') {
       const { error: updateError } = await supabase
         .from('profiles')
-        .update({ card_status: 'suspended', revoked: true, suspended_at: new Date().toISOString() })
+        .update({ card_status: 'suspended', suspended_at: new Date().toISOString() })
         .eq('id', user.id);
 
       if (updateError) {
@@ -84,7 +118,7 @@ export async function POST(req: NextRequest) {
     } else if (action === 'reactivate') {
       const { error: updateError } = await supabase
         .from('profiles')
-        .update({ card_status: 'active', revoked: false, suspended_at: null })
+        .update({ card_status: 'active', suspended_at: null })
         .eq('id', user.id);
 
       if (updateError) {
@@ -99,79 +133,6 @@ export async function POST(req: NextRequest) {
     } else {
       return NextResponse.json({ success: false, error: 'Invalid action' }, { status: 400 });
     }
-  } catch (error: unknown) {
-    const message = error instanceof Error ? error.message : 'Internal server error';
-    return NextResponse.json({ success: false, error: message }, { status: 500 });
-  }
-}
-
-// ─── POST /api/scan-log ─────────────────────────────────────────────────────
-// Save scan log entry (called by responder PWA)
-export async function POST(req: NextRequest) {
-  try {
-    const body = await req.json();
-    
-    // Responder login token verification
-    const authHeader = req.headers.get('authorization');
-    let responderId: string | null = null;
-    
-    if (authHeader?.startsWith('Bearer ')) {
-      const token = authHeader.substring(7);
-      try {
-        const { verifyToken: verifyResponder } = await import('@/lib/auth');
-        // Use a separate responder verification or just accept the payload for now
-        responderId = body.responder_id || null;
-      } catch {
-        responderId = body.responder_id || null;
-      }
-    } else {
-      responderId = body.responder_id || null;
-    }
-
-    if (!body.prana_id) {
-      return NextResponse.json({ success: false, error: 'prana_id is required' }, { status: 400 });
-    }
-
-    const scanEntry = {
-      prana_id: body.prana_id,
-      responder_id: responderId,
-      location_city: body.location_city || null,
-      location_country: body.location_country || null,
-      gps_coordinates: body.gps_coordinates || null,
-      scanner_type: body.scanner_type || 'web',
-      user_agent: body.user_agent || null,
-      access_tier: body.access_tier || 'Green Tier',
-      accessed_data_summary: body.accessed_data_summary || null,
-    };
-
-    const { data, error } = await supabase
-      .from('scan_logs')
-      .insert([scanEntry])
-      .select('id, prana_id, scanned_at')
-      .single();
-
-    if (error) {
-      return NextResponse.json({ success: false, error: error.message }, { status: 500 });
-    }
-
-    // Notify emergency contacts if card was suspended
-    if (data) {
-      const { data: profile } = await supabase
-        .from('profiles')
-        .select('prana_id, card_status')
-        .eq('prana_id', body.prana_id)
-        .single();
-
-      if (profile?.card_status === 'suspended') {
-        // Could trigger notification here
-        console.log(`⚠️ Scanned suspended card: ${body.prana_id}`);
-      }
-    }
-
-    return NextResponse.json({
-      success: true,
-      data,
-    }, { status: 201 });
   } catch (error: unknown) {
     const message = error instanceof Error ? error.message : 'Internal server error';
     return NextResponse.json({ success: false, error: message }, { status: 500 });
