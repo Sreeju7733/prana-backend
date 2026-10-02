@@ -2,6 +2,7 @@
 
 import React, { useState, useEffect } from "react";
 import Link from "next/link";
+import { useRouter } from "next/navigation";
 
 interface HospitalSession {
   id: string;
@@ -10,13 +11,6 @@ interface HospitalSession {
   registration_number: string;
   city: string;
   state: string;
-}
-
-interface StaffSession {
-  doctor_id: string;
-  doctor_name: string;
-  department: string;
-  role: string;
 }
 
 interface Paramedic {
@@ -100,6 +94,9 @@ interface PatientSearchResponse {
 }
 
 export default function HospitalEHRDashboard() {
+  const router = useRouter();
+  const [isAuthenticated, setIsAuthenticated] = useState<boolean | null>(null);
+
   // Sidenav navigation section
   const [navSection, setNavSection] = useState<"patient_lookup" | "insurance_desk" | "paramedics" | "admissions" | "facility_settings">("patient_lookup");
 
@@ -113,16 +110,8 @@ export default function HospitalEHRDashboard() {
     state: "Delhi",
   });
 
-  const [staffSession, setStaffSession] = useState<StaffSession>({
-    doctor_id: "DOC-STATION-01",
-    doctor_name: "Attending Duty Physician",
-    department: "Emergency Medicine & Trauma Resuscitation",
-    role: "Attending Emergency Physician",
-  });
-
   const [showSwitchFacility, setShowSwitchFacility] = useState(false);
   const [facilitySelect, setFacilitySelect] = useState("HOSP-AIIMS-01");
-  const [doctorNameInput, setDoctorNameInput] = useState("Attending Duty Physician");
 
   // Patient Search (By PRANA ID or Phone Number)
   const [searchPid, setSearchPid] = useState("PRAN-ba42c5c2");
@@ -318,26 +307,50 @@ export default function HospitalEHRDashboard() {
     }
   };
 
-  useEffect(() => {
-    // Check if hospital staff session exists in localStorage
-    try {
-      const storedHosp = localStorage.getItem("prana_hosp_session");
-      const storedStaff = localStorage.getItem("prana_staff_session");
-      if (storedHosp) {
-        const hospObj = JSON.parse(storedHosp);
-        setHospitalSession(hospObj);
-      }
-      if (storedStaff) {
-        const staffObj = JSON.parse(storedStaff);
-        setStaffSession(staffObj);
-      }
-    } catch {
-      // fallback to defaults
-    }
+  const handleLogout = () => {
+    localStorage.removeItem("prana_hosp_token");
+    localStorage.removeItem("prana_hosp_session");
+    localStorage.removeItem("prana_staff_session");
+    router.replace("/hospitals/login");
+  };
 
-    performSearch("PRAN-ba42c5c2");
-    fetchHospitalParamedics();
-  }, []);
+  useEffect(() => {
+    // Check if valid hospital facility token and session exists
+    try {
+      const token = localStorage.getItem("prana_hosp_token");
+      const storedHosp = localStorage.getItem("prana_hosp_session");
+
+      if (!token || !storedHosp) {
+        // Not authenticated -> kick out immediately to hospital login
+        setIsAuthenticated(false);
+        router.replace("/hospitals/login");
+        return;
+      }
+
+      const hospObj = JSON.parse(storedHosp);
+      setHospitalSession(hospObj);
+      setIsAuthenticated(true);
+      performSearch("PRAN-ba42c5c2");
+      fetchHospitalParamedics(hospObj.name);
+    } catch {
+      setIsAuthenticated(false);
+      router.replace("/hospitals/login");
+    }
+  }, [router]);
+
+  if (isAuthenticated === null || isAuthenticated === false) {
+    return (
+      <div className="min-h-screen bg-slate-50 flex items-center justify-center font-sans antialiased text-slate-800">
+        <div className="text-center space-y-3">
+          <div className="w-12 h-12 rounded-xl bg-teal-50 border border-teal-200 text-teal-800 flex items-center justify-center text-xl mx-auto animate-pulse">
+            🏥
+          </div>
+          <div className="font-bold text-sm text-slate-900">Hospital Facility Authentication Required</div>
+          <p className="text-xs text-slate-500">Redirecting to Hospital Login Gateway...</p>
+        </div>
+      </div>
+    );
+  }
 
   return (
     <div className="min-h-screen bg-slate-50 text-slate-900 flex font-sans selection:bg-teal-600 selection:text-white antialiased">
@@ -462,13 +475,13 @@ export default function HospitalEHRDashboard() {
                 <div className="text-[10px] text-teal-700 font-medium truncate">Authorized Terminal</div>
               </div>
             </div>
-            <Link
-              href="/hospitals/login"
+            <button
+              onClick={handleLogout}
               title="Sign Out of Facility"
               className="text-xs text-red-600 hover:text-red-700 font-semibold px-2 py-1 rounded hover:bg-red-50 transition shrink-0"
             >
               Logout 🚪
-            </Link>
+            </button>
           </div>
 
           <div className="pt-2 border-t border-slate-100 flex items-center justify-between text-[11px] font-semibold">
