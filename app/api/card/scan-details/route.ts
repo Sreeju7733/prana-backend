@@ -1,5 +1,6 @@
 import { NextRequest, NextResponse } from 'next/server';
 import { createClient } from '@supabase/supabase-js';
+import { getCached, setCached } from '@/lib/cache';
 
 const supabase = createClient(
     process.env.NEXT_PUBLIC_SUPABASE_URL!,
@@ -16,6 +17,11 @@ export async function GET(req: NextRequest) {
         }
 
         const cleanId = pid.trim();
+        const cacheKey = `scan_details_${cleanId}`;
+        const cached = getCached<Record<string, unknown>>(cacheKey);
+        if (cached) {
+            return NextResponse.json(cached, { status: 200 });
+        }
 
         // 1. Fetch profile by prana_id or id
         const { data: profiles } = await supabase
@@ -37,7 +43,7 @@ export async function GET(req: NextRequest) {
 
         const uid = profile.id;
 
-        // 2. Fetch all tables in parallel
+        // 2. Fetch all tables directly with indexed user_id filter
         const [
             { data: allergies },
             { data: medications },
@@ -47,13 +53,13 @@ export async function GET(req: NextRequest) {
             { data: vitals },
             { data: contacts }
         ] = await Promise.all([
-            supabase.from('allergies').select('*'),
-            supabase.from('medications').select('*'),
-            supabase.from('conditions').select('*'),
-            supabase.from('devices').select('*'),
-            supabase.from('surgeries').select('*'),
-            supabase.from('vitals').select('*'),
-            supabase.from('emergency_contacts').select('*'),
+            supabase.from('allergies').select('*').eq('user_id', uid),
+            supabase.from('medications').select('*').eq('user_id', uid),
+            supabase.from('conditions').select('*').eq('user_id', uid),
+            supabase.from('devices').select('*').eq('user_id', uid),
+            supabase.from('surgeries').select('*').eq('user_id', uid),
+            supabase.from('vitals').select('*').eq('user_id', uid),
+            supabase.from('emergency_contacts').select('*').eq('user_id', uid),
         ]);
 
         // Helper filter to get rows strictly belonging to this profile ID
@@ -101,7 +107,7 @@ export async function GET(req: NextRequest) {
             };
         });
 
-        return NextResponse.json({
+        const resultData = {
             success: true,
             patient: {
                 prana_id: profile.prana_id || cleanId,
@@ -117,7 +123,10 @@ export async function GET(req: NextRequest) {
             surgeries: filterUserRows(surgeries),
             vitals: filterUserRows(vitals),
             contacts: formattedContacts,
-        }, { status: 200 });
+        };
+
+        setCached(cacheKey, resultData, 60);
+        return NextResponse.json(resultData, { status: 200 });
 
     } catch (err: unknown) {
         const message = err instanceof Error ? err.message : 'Server error';

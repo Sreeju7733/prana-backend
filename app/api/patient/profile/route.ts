@@ -1,6 +1,7 @@
 import { NextRequest, NextResponse } from 'next/server';
 import { createClient } from '@supabase/supabase-js';
 import jwt from 'jsonwebtoken';
+import { getCached, setCached, invalidateCache } from '@/lib/cache';
 
 const supabase = createClient(
     process.env.NEXT_PUBLIC_SUPABASE_URL!,
@@ -76,49 +77,33 @@ export async function GET(req: NextRequest) {
             return NextResponse.json({ error: 'Profile not found' }, { status: 404 });
         }
 
-        // Helper function to safely fetch table entries belonging strictly to this user profile
-        const safeFetch = async (tableName: string) => {
-            const possibleIds = Array.from(new Set([
-                userId,
-                profile.id,
-                profile.user_id,
-                profile.prana_id
-            ].filter(Boolean)));
+        const effectiveUid = String(userId || profile.id);
+        const cacheKey = `patient_profile_${effectiveUid}`;
+        const cachedPayload = getCached<Record<string, unknown>>(cacheKey);
+        if (cachedPayload) {
+            return NextResponse.json(cachedPayload);
+        }
 
-            for (const pId of possibleIds) {
-                try {
-                    const { data } = await supabase.from(tableName).select('*').eq('user_id', pId);
-                    if (data && data.length > 0) return data;
-                } catch {
-                    // Ignore fetch error
-                }
-                try {
-                    const { data } = await supabase.from(tableName).select('*').eq('patient_id', pId);
-                    if (data && data.length > 0) return data;
-                } catch {
-                    // Ignore fetch error
-                }
-                try {
-                    const { data } = await supabase.from(tableName).select('*').eq('prana_id', pId);
-                    if (data && data.length > 0) return data;
-                } catch {
-                    // Ignore fetch error
-                }
-            }
-            return [];
-        };
-
-        const [allergies, medications, conditions, devices, surgeries, vitals, contacts] = await Promise.all([
-            safeFetch('allergies'),
-            safeFetch('medications'),
-            safeFetch('conditions'),
-            safeFetch('devices'),
-            safeFetch('surgeries'),
-            safeFetch('vitals'),
-            safeFetch('emergency_contacts'),
+        // Direct parallel fetch across all 7 tables in a single round-trip
+        const [
+            { data: allergies },
+            { data: medications },
+            { data: conditions },
+            { data: devices },
+            { data: surgeries },
+            { data: vitals },
+            { data: contacts }
+        ] = await Promise.all([
+            supabase.from('allergies').select('*').eq('user_id', effectiveUid),
+            supabase.from('medications').select('*').eq('user_id', effectiveUid),
+            supabase.from('conditions').select('*').eq('user_id', effectiveUid),
+            supabase.from('devices').select('*').eq('user_id', effectiveUid),
+            supabase.from('surgeries').select('*').eq('user_id', effectiveUid),
+            supabase.from('vitals').select('*').eq('user_id', effectiveUid),
+            supabase.from('emergency_contacts').select('*').eq('user_id', effectiveUid),
         ]);
 
-        return NextResponse.json({
+        const responsePayload = {
             success: true,
             profile: profile ? {
                 ...profile,
@@ -134,7 +119,10 @@ export async function GET(req: NextRequest) {
             surgeries: surgeries || [],
             vitals: vitals || [],
             contacts: contacts || [],
-        });
+        };
+
+        setCached(cacheKey, responsePayload, 30);
+        return NextResponse.json(responsePayload);
 
     } catch (error: unknown) {
         const message = error instanceof Error ? error.message : 'Unauthorized access';
@@ -194,6 +182,9 @@ export async function PUT(req: NextRequest) {
             height: profile.height_cm ?? profile.height,
             height_cm: profile.height_cm ?? profile.height,
         } : null;
+
+        invalidateCache(`patient_profile_${targetId}`);
+        invalidateCache(`dashboard_${targetId}`);
 
         return NextResponse.json({ success: true, data: normalizedProfile, profile: normalizedProfile });
 

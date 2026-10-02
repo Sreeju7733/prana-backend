@@ -1,6 +1,7 @@
 import { NextRequest, NextResponse } from 'next/server';
 import { supabase, verifyToken } from '@/lib/auth';
 import { generateEmergencySummary } from '@/lib/summary_generator';
+import { getCached, setCached } from '@/lib/cache';
 
 // Helper for standard response wrapping
 function jsonResponse(data: unknown = null, error: unknown = null, status = 200) {
@@ -11,6 +12,12 @@ function jsonResponse(data: unknown = null, error: unknown = null, status = 200)
 export async function GET(req: NextRequest) {
     try {
         const user = verifyToken(req);
+
+        const cacheKey = `dashboard_${user.id}`;
+        const cached = getCached<Record<string, unknown>>(cacheKey);
+        if (cached) {
+            return jsonResponse(cached, null, 200);
+        }
 
         // 1. Fetch Profile with fallbacks
         let profile: Record<string, unknown> | null = null;
@@ -138,6 +145,7 @@ export async function GET(req: NextRequest) {
             responsePayload.card_suspended_reason = 'Card temporarily suspended by user for privacy/security.';
         }
 
+        setCached(cacheKey, responsePayload, 30);
         return jsonResponse(responsePayload, null, 200);
 
     } catch (error: unknown) {
