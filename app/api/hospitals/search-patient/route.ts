@@ -75,8 +75,48 @@ export async function GET(req: NextRequest) {
       }, { status: 404 });
     }
 
+    // 24-Hour Access Window Logic:
+    // If a hospital gave a valid reason in the past 24 hours for this patient, they can reopen the record without re-entering a reason.
+    // If 24 hours have elapsed, or no prior reason exists, an access justification is required.
+    const twentyFourHoursAgo = new Date(Date.now() - 24 * 60 * 60 * 1000).toISOString();
+    const { data: priorLogs } = await supabase
+      .from('scan_logs')
+      .select('id, scanned_at, denial_reason')
+      .eq('hospital_id', hospitalId)
+      .eq('prana_id', profile.prana_id)
+      .gte('scanned_at', twentyFourHoursAgo)
+      .order('scanned_at', { ascending: false })
+      .limit(1);
+
+    const hasActive24hWindow = priorLogs && priorLogs.length > 0;
+    const previousReason = hasActive24hWindow ? priorLogs[0].denial_reason : null;
+
+    // Fixed access reasons:
+    // "Card QR scanned" | "Emergency admission" | "Patient present and consenting" | "Referral"
+    const VALID_REASONS = [
+      'Card QR scanned',
+      'Emergency admission',
+      'Patient present and consenting',
+      'Referral'
+    ];
+
+    let accessReason = reason ? reason.trim() : '';
+
+    if (!accessReason) {
+      if (hasActive24hWindow && previousReason) {
+        accessReason = `${previousReason} (24-Hour Active Clinical Window)`;
+      } else if (!isPhoneSearch) {
+        accessReason = 'Card QR scanned';
+      } else {
+        return NextResponse.json({
+          success: false,
+          requires_reason: true,
+          error: 'Access justification required: 24-hour window expired or initial access. Select: Emergency admission, Patient present and consenting, Referral, or Card QR scanned.'
+        }, { status: 403 });
+      }
+    }
+
     const uid = profile.id;
-    const accessReason = isPhoneSearch ? reason : (reason || 'Emergency Triage & Clinical Lookup');
 
     // 2. Fetch full medical record permitted for verified hospitals
     const [
@@ -102,14 +142,13 @@ export async function GET(req: NextRequest) {
     // 3. Log access in scan_logs with reason (Break-glass forensic trail)
     try {
       await supabase.from('scan_logs').insert([{
-        user_id: uid,
         prana_id: profile.prana_id || cleanPid,
         hospital_id: hospitalId,
-        access_tier: 'Red Tier (Hospital Clinical Access)',
-        scanner_type: isPhoneSearch ? 'Break-Glass Phone Search' : 'Hospital Clinical Workstation',
-        location_city: hospitalClaims.station_id || 'Hospital Emergency Unit',
-        responder_org: hospitalName,
-        accessed_data_summary: `Full Clinical Record accessed. Justification: ${accessReason}`,
+        doctor_id: hospitalClaims.station_id || `${hospitalId}-STAFF`,
+        access_tier: 'red',
+        device_type: isPhoneSearch ? 'Break-Glass Clinical Search' : 'Hospital Workstation',
+        denial_reason: accessReason,
+        access_granted: true,
         scanned_at: new Date().toISOString()
       }]);
     } catch {

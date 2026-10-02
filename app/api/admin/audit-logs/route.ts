@@ -5,14 +5,15 @@ import { supabase, verifyAdminToken, verifyHospitalToken } from '@/lib/auth';
 export async function GET(req: NextRequest) {
   try {
     let isSuperAdmin = false;
+    let hospitalClaims: { role: string; hospital_id?: string } | null = null;
     try {
       verifyAdminToken(req);
       isSuperAdmin = true;
     } catch {
       // Try hospital token if not superadmin
       try {
-        const claims = verifyHospitalToken(req);
-        if (claims.role === 'superadmin') isSuperAdmin = true;
+        hospitalClaims = verifyHospitalToken(req);
+        if (hospitalClaims.role === 'superadmin') isSuperAdmin = true;
       } catch {
         return NextResponse.json({ success: false, error: 'Unauthorized: Authentication required.' }, { status: 401 });
       }
@@ -21,7 +22,7 @@ export async function GET(req: NextRequest) {
     const { searchParams } = new URL(req.url);
     const limit = parseInt(searchParams.get('limit') || '50', 10);
     const pranaId = searchParams.get('prana_id');
-    const hospitalId = searchParams.get('hospital_id');
+    const hospitalId = !isSuperAdmin && hospitalClaims?.hospital_id ? hospitalClaims.hospital_id : searchParams.get('hospital_id');
     const tier = searchParams.get('tier');
 
     let query = supabase
