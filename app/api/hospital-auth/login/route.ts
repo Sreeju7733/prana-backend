@@ -8,11 +8,19 @@ const JWT_SECRET = process.env.JWT_SECRET || 'your-secret-key';
 export async function POST(req: NextRequest) {
   try {
     const body = await req.json();
-    const { hospital_id, doctor_id, registration_number, pin } = body;
+    const { hospital_id, password, pin } = body;
 
     if (!hospital_id) {
       return NextResponse.json(
-        { success: false, error: 'Hospital ID or Registration number is required' },
+        { success: false, error: 'Hospital ID is required' },
+        { status: 400 }
+      );
+    }
+
+    const authKey = (password || pin || '').trim();
+    if (!authKey) {
+      return NextResponse.json(
+        { success: false, error: 'Hospital access password / PIN is required' },
         { status: 400 }
       );
     }
@@ -45,21 +53,14 @@ export async function POST(req: NextRequest) {
       );
     }
 
-    // 2. Doctor / Staff identity
-    const staffDoctorId = doctor_id?.trim() || 'DOC-DUTY-101';
-    const staffName = body.doctor_name?.trim() || `Duty Physician (${staffDoctorId})`;
-    const staffDepartment = body.department?.trim() || 'Emergency Medicine & Trauma';
-
-    // 3. Issue Hospital Session JWT Token
+    // 2. Issue Hospital Facility Session JWT Token
     const token = jwt.sign(
       {
         hospital_uuid: hospital.id,
         hospital_id: hospital.hospital_id,
         hospital_name: hospital.name,
-        doctor_id: staffDoctorId,
-        doctor_name: staffName,
-        department: staffDepartment,
-        role: 'hospital_physician',
+        station_id: `${hospital.hospital_id}-STAFF-01`,
+        role: 'hospital_facility',
         tier_access: ['green', 'yellow', 'red']
       },
       JWT_SECRET,
@@ -78,9 +79,9 @@ export async function POST(req: NextRequest) {
         state: hospital.state,
       },
       staff: {
-        doctor_id: staffDoctorId,
-        doctor_name: staffName,
-        department: staffDepartment,
+        doctor_id: `${hospital.hospital_id}-STAFF`,
+        doctor_name: `${hospital.name} Duty Station`,
+        department: 'Emergency & Trauma Resuscitation',
       }
     }, { status: 200 });
 

@@ -454,17 +454,17 @@ export default function HospitalEHRDashboard() {
         <div className="p-4 border-t border-slate-100 space-y-3">
           <div className="flex items-center justify-between">
             <div className="flex items-center gap-2.5 truncate">
-              <div className="w-8 h-8 rounded-full bg-teal-100 text-teal-800 font-bold text-xs flex items-center justify-center shrink-0">
-                MD
+              <div className="w-8 h-8 rounded-lg bg-teal-50 border border-teal-200 text-teal-800 font-bold text-xs flex items-center justify-center shrink-0">
+                🏥
               </div>
               <div className="text-xs truncate">
-                <div className="font-bold text-slate-800 truncate">{staffSession.doctor_name || "Duty Physician"}</div>
-                <div className="text-[10px] text-slate-500 font-mono truncate">{staffSession.doctor_id || "Active Station"}</div>
+                <div className="font-bold text-slate-800 truncate">{hospitalSession.hospital_id}</div>
+                <div className="text-[10px] text-teal-700 font-medium truncate">Authorized Terminal</div>
               </div>
             </div>
             <Link
               href="/hospitals/login"
-              title="Sign Out to Hospital Login"
+              title="Sign Out of Facility"
               className="text-xs text-red-600 hover:text-red-700 font-semibold px-2 py-1 rounded hover:bg-red-50 transition shrink-0"
             >
               Logout 🚪
@@ -495,7 +495,7 @@ export default function HospitalEHRDashboard() {
             </span>
             <span className="text-slate-300">/</span>
             <span className="text-xs text-slate-500 font-medium">
-              {staffSession.department}
+              Clinical Emergency & Trauma Unit
             </span>
           </div>
 
@@ -523,29 +523,21 @@ export default function HospitalEHRDashboard() {
           </div>
         </header>
 
-        {/* Facility Credentials Switcher */}
+        {/* Facility Switcher */}
         {showSwitchFacility && (
           <div className="bg-white border-b border-slate-200 p-4 px-6 flex flex-wrap items-center justify-between gap-4 text-xs shadow-xs">
             <div className="flex items-center gap-3 flex-wrap">
-              <span className="font-bold text-slate-700">Select Accredited Hospital:</span>
+              <span className="font-bold text-slate-700">Switch Facility:</span>
               <select
                 value={facilitySelect}
                 onChange={(e) => setFacilitySelect(e.target.value)}
                 className="bg-white border border-slate-300 rounded-lg px-3 py-1.5 text-slate-800 outline-none focus:ring-1 focus:ring-teal-600"
               >
-                <option value="HOSP-AIIMS-01">AIIMS New Delhi - Trauma & Emergency Center</option>
-                <option value="HOSP-MAX-02">Max Super Speciality Hospital Saket</option>
-                <option value="HOSP-APOLLO-03">Indraprastha Apollo Hospitals</option>
-                <option value="HOSP-FORTIS-04">Fortis Memorial Research Institute</option>
+                <option value="HOSP-AIIMS-01">AIIMS New Delhi - Trauma & Emergency Center (HOSP-AIIMS-01)</option>
+                <option value="HOSP-MAX-02">Max Super Speciality Hospital Saket (HOSP-MAX-02)</option>
+                <option value="HOSP-APOLLO-03">Indraprastha Apollo Hospitals (HOSP-APOLLO-03)</option>
+                <option value="HOSP-FORTIS-04">Fortis Memorial Research Institute (HOSP-FORTIS-04)</option>
               </select>
-
-              <span className="font-bold text-slate-700 ml-2">Duty Physician:</span>
-              <input
-                type="text"
-                value={doctorNameInput}
-                onChange={(e) => setDoctorNameInput(e.target.value)}
-                className="bg-white border border-slate-300 rounded-lg px-3 py-1.5 text-slate-800 outline-none focus:ring-1 focus:ring-teal-600 w-60"
-              />
             </div>
             <div className="flex gap-2">
               <button
@@ -558,13 +550,12 @@ export default function HospitalEHRDashboard() {
                     hospital_id: facilitySelect,
                     name: newName
                   });
-                  setStaffSession({ ...staffSession, doctor_name: doctorNameInput });
                   setShowSwitchFacility(false);
                   fetchHospitalParamedics(newName);
                 }}
                 className="bg-teal-600 hover:bg-teal-700 text-white font-bold px-3 py-1.5 rounded-lg transition"
               >
-                Apply
+                Switch Facility
               </button>
               <button
                 onClick={() => setShowSwitchFacility(false)}
@@ -1058,8 +1049,8 @@ export default function HospitalEHRDashboard() {
                           <strong className="font-mono text-slate-900">{hospitalSession.hospital_id}</strong>
                         </div>
                         <div className="flex justify-between">
-                          <span>Attending Staff:</span>
-                          <strong className="text-slate-900">{staffSession.doctor_name}</strong>
+                          <span>Terminal Clearance:</span>
+                          <strong className="text-slate-900">Hospital Staff EHR Workstation ({hospitalSession.hospital_id})</strong>
                         </div>
                         <div className="flex justify-between">
                           <span>Access Tier:</span>

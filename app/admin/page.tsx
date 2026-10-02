@@ -328,6 +328,18 @@ export default function ProfessionalSuperAdminDashboard() {
             </button>
 
             <button
+              onClick={() => setActiveNav("admissions")}
+              className={`w-full flex items-center gap-3 px-3 py-2.5 rounded-lg text-xs font-semibold text-left transition ${
+                activeNav === "admissions"
+                  ? "bg-indigo-50 text-indigo-800 border border-indigo-200 shadow-xs"
+                  : "text-slate-600 hover:bg-slate-100 hover:text-slate-900"
+              }`}
+            >
+              <span className="text-base">📋</span>
+              <span>Emergency & Shift Admissions</span>
+            </button>
+
+            <button
               onClick={() => setActiveNav("audit")}
               className={`w-full flex items-center gap-3 px-3 py-2.5 rounded-lg text-xs font-semibold text-left transition ${
                 activeNav === "audit"
@@ -780,7 +792,119 @@ export default function ProfessionalSuperAdminDashboard() {
             </div>
           )}
 
-          {/* TAB 5: AUDIT LOGS */}
+          {/* TAB 5: EMERGENCY & WARD ADMISSIONS (ACROSS HOSPITALS) */}
+          {activeNav === "admissions" && (
+            <div className="space-y-4">
+              <div className="bg-white border border-slate-200 rounded-xl p-5 shadow-xs flex flex-col sm:flex-row sm:items-center justify-between gap-4">
+                <div>
+                  <h3 className="font-bold text-sm text-slate-900">Hospital Emergency & Ward Admissions (Active Shifts)</h3>
+                  <p className="text-xs text-slate-500 mt-0.5">
+                    Centralized supervision of live casualty intakes, triage stages, and inpatient admissions across network facilities.
+                  </p>
+                </div>
+                <div className="flex items-center gap-2">
+                  <span className="text-xs text-slate-500">Live Intake Sync:</span>
+                  <span className="text-[10px] font-bold bg-emerald-50 text-emerald-700 border border-emerald-200 px-2 py-0.5 rounded">
+                    Active
+                  </span>
+                </div>
+              </div>
+
+              <div className="bg-white border border-slate-200 rounded-xl overflow-hidden shadow-xs">
+                <table className="w-full text-left text-xs">
+                  <thead className="bg-slate-50 text-slate-600 uppercase font-bold text-[10px] border-b border-slate-200">
+                    <tr>
+                      <th className="py-2.5 px-3">Patient Name & PRANA ID</th>
+                      <th className="py-2.5 px-3">Admitting Hospital</th>
+                      <th className="py-2.5 px-3">Registered Mobile</th>
+                      <th className="py-2.5 px-3">Age / Blood</th>
+                      <th className="py-2.5 px-3">Triage & Admission Status</th>
+                      <th className="py-2.5 px-3 text-right">Actions</th>
+                    </tr>
+                  </thead>
+                  <tbody className="divide-y divide-slate-100">
+                    <tr className="hover:bg-slate-50">
+                      <td className="py-3 px-3">
+                        <div className="font-bold text-slate-900">Sreeju S</div>
+                        <span className="font-mono text-[11px] text-teal-700 font-semibold">PRAN-ba42c5c2</span>
+                      </td>
+                      <td className="py-3 px-3">
+                        <div className="font-bold text-slate-800">AIIMS New Delhi</div>
+                        <span className="text-[10px] text-slate-500 font-mono">Trauma Resuscitation Bay 2</span>
+                      </td>
+                      <td className="py-3 px-3 font-mono text-slate-700 font-semibold">9489365108</td>
+                      <td className="py-3 px-3">
+                        <span className="text-slate-600">19 Yrs • </span>
+                        <strong className="text-red-700 font-bold">B+</strong>
+                      </td>
+                      <td className="py-3 px-3">
+                        <span className="text-[10px] font-bold px-2 py-0.5 rounded bg-emerald-50 text-emerald-700 border border-emerald-200">
+                          Active Inpatient (Stable)
+                        </span>
+                      </td>
+                      <td className="py-3 px-3 text-right">
+                        <Link href="/hospitals" className="text-xs font-bold text-indigo-700 hover:underline">
+                          Hospital View →
+                        </Link>
+                      </td>
+                    </tr>
+                    <tr className="hover:bg-slate-50">
+                      <td className="py-3 px-3">
+                        <div className="font-bold text-slate-900">Kavita Ramachandran</div>
+                        <span className="font-mono text-[11px] text-teal-700 font-semibold">PRAN-9921D8A2</span>
+                      </td>
+                      <td className="py-3 px-3">
+                        <div className="font-bold text-slate-800">Max Super Speciality Saket</div>
+                        <span className="text-[10px] text-slate-500 font-mono">ICU Bed 04</span>
+                      </td>
+                      <td className="py-3 px-3 font-mono text-slate-700 font-semibold">9811223344</td>
+                      <td className="py-3 px-3">
+                        <span className="text-slate-600">34 Yrs • </span>
+                        <strong className="text-red-700 font-bold">O+</strong>
+                      </td>
+                      <td className="py-3 px-3">
+                        <span className="text-[10px] font-bold px-2 py-0.5 rounded bg-amber-50 text-amber-700 border border-amber-200">
+                          Active (Allergy Alert: Penicillin)
+                        </span>
+                      </td>
+                      <td className="py-3 px-3 text-right">
+                        <Link href="/hospitals" className="text-xs font-bold text-indigo-700 hover:underline">
+                          Hospital View →
+                        </Link>
+                      </td>
+                    </tr>
+                    <tr className="hover:bg-slate-50">
+                      <td className="py-3 px-3">
+                        <div className="font-bold text-slate-900">Rohan Varma</div>
+                        <span className="font-mono text-[11px] text-teal-700 font-semibold">PRAN-4410A1B0</span>
+                      </td>
+                      <td className="py-3 px-3">
+                        <div className="font-bold text-slate-800">Indraprastha Apollo Hospitals</div>
+                        <span className="text-[10px] text-slate-500 font-mono">Cardiology Stepdown</span>
+                      </td>
+                      <td className="py-3 px-3 font-mono text-slate-700 font-semibold">9876543210</td>
+                      <td className="py-3 px-3">
+                        <span className="text-slate-600">48 Yrs • </span>
+                        <strong className="text-red-700 font-bold">A+</strong>
+                      </td>
+                      <td className="py-3 px-3">
+                        <span className="text-[10px] font-bold px-2 py-0.5 rounded bg-slate-100 text-slate-700 border border-slate-200">
+                          Discharge Summary Pending
+                        </span>
+                      </td>
+                      <td className="py-3 px-3 text-right">
+                        <Link href="/hospitals" className="text-xs font-bold text-indigo-700 hover:underline">
+                          Hospital View →
+                        </Link>
+                      </td>
+                    </tr>
+                  </tbody>
+                </table>
+              </div>
+            </div>
+          )}
+
+          {/* TAB 6: AUDIT LOGS */}
           {activeNav === "audit" && (
             <div className="bg-white border border-slate-200 rounded-xl overflow-hidden shadow-xs">
               <table className="w-full text-left text-xs">

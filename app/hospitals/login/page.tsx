@@ -8,10 +8,7 @@ export default function HospitalLoginPage() {
   const router = useRouter();
 
   const [hospitalId, setHospitalId] = useState("HOSP-AIIMS-01");
-  const [doctorId, setDoctorId] = useState("DOC-STAFF-01");
-  const [doctorName, setDoctorName] = useState("Attending Duty Physician");
-  const [department, setDepartment] = useState("Emergency Medicine & Trauma Resuscitation");
-  const [pin, setPin] = useState("1234");
+  const [password, setPassword] = useState("1234");
   const [isLoading, setIsLoading] = useState(false);
   const [error, setError] = useState<string | null>(null);
 
@@ -33,10 +30,8 @@ export default function HospitalLoginPage() {
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify({
           hospital_id: hospitalId.trim(),
-          doctor_id: doctorId.trim(),
-          doctor_name: doctorName.trim(),
-          department: department.trim(),
-          pin: pin.trim(),
+          password: password.trim(),
+          pin: password.trim(),
         }),
       });
 
@@ -130,62 +125,16 @@ export default function HospitalLoginPage() {
 
             <div>
               <label className="block font-bold text-slate-700 mb-1">
-                Attending Doctor / Physician Name
+                Hospital Facility Access Password / PIN
               </label>
               <input
-                type="text"
-                value={doctorName}
-                onChange={(e) => setDoctorName(e.target.value)}
-                placeholder="e.g. Attending Duty Physician"
-                className="w-full bg-white border border-slate-300 rounded-lg px-3 py-2 text-slate-900 outline-none focus:ring-1 focus:ring-teal-600"
+                type="password"
+                value={password}
+                onChange={(e) => setPassword(e.target.value)}
+                placeholder="Enter hospital terminal password (e.g. 1234)"
+                className="w-full bg-white border border-slate-300 rounded-lg px-3 py-2 font-mono text-slate-900 outline-none focus:ring-1 focus:ring-teal-600"
                 required
               />
-            </div>
-
-            <div className="grid grid-cols-2 gap-3">
-              <div>
-                <label className="block font-bold text-slate-700 mb-1">
-                  Doctor ID / Badge #
-                </label>
-                <input
-                  type="text"
-                  value={doctorId}
-                  onChange={(e) => setDoctorId(e.target.value)}
-                  placeholder="DOC-9081"
-                  className="w-full bg-white border border-slate-300 rounded-lg px-3 py-2 font-mono text-slate-900 outline-none focus:ring-1 focus:ring-teal-600"
-                  required
-                />
-              </div>
-
-              <div>
-                <label className="block font-bold text-slate-700 mb-1">
-                  Terminal PIN
-                </label>
-                <input
-                  type="password"
-                  value={pin}
-                  onChange={(e) => setPin(e.target.value)}
-                  placeholder="••••"
-                  className="w-full bg-white border border-slate-300 rounded-lg px-3 py-2 font-mono text-slate-900 outline-none focus:ring-1 focus:ring-teal-600"
-                />
-              </div>
-            </div>
-
-            <div>
-              <label className="block font-bold text-slate-700 mb-1">
-                Clinical Department
-              </label>
-              <select
-                value={department}
-                onChange={(e) => setDepartment(e.target.value)}
-                className="w-full bg-white border border-slate-300 rounded-lg px-3 py-2 text-slate-900 outline-none focus:ring-1 focus:ring-teal-600"
-              >
-                <option value="Emergency Medicine & Trauma Resuscitation">Emergency Medicine & Trauma Resuscitation</option>
-                <option value="Intensive Care Unit (ICU)">Intensive Care Unit (ICU)</option>
-                <option value="Cardiology & Cath Lab">Cardiology & Cath Lab</option>
-                <option value="General Surgery & Orthopedics">General Surgery & Orthopedics</option>
-                <option value="Cashless Insurance & TPA Desk">Cashless Insurance & TPA Desk</option>
-              </select>
             </div>
 
             <button
@@ -193,15 +142,15 @@ export default function HospitalLoginPage() {
               disabled={isLoading}
               className="w-full bg-teal-600 hover:bg-teal-700 text-white font-bold py-2.5 rounded-lg text-xs transition shadow-xs disabled:opacity-50 mt-2"
             >
-              {isLoading ? "Authenticating Workstation..." : "Sign In to Hospital EHR"}
+              {isLoading ? "Authenticating Facility..." : "Sign In to Hospital Portal"}
             </button>
           </form>
 
           {/* Quick Credential Hints */}
           <div className="p-3 bg-slate-50 border border-slate-200 rounded-lg text-[11px] text-slate-600 space-y-1">
             <span className="font-bold text-slate-800 block">Demonstration Credentials:</span>
-            <div>Hospital: <span className="font-mono text-teal-800">AIIMS New Delhi (HOSP-AIIMS-01)</span></div>
-            <div>Doctor / Staff: <span className="font-semibold text-slate-700">Attending Duty Physician (PIN: 1234)</span></div>
+            <div>Hospital ID: <span className="font-mono text-teal-800">AIIMS New Delhi (HOSP-AIIMS-01)</span></div>
+            <div>Password / PIN: <span className="font-mono text-slate-700 font-bold">1234</span></div>
           </div>
         </div>
       </div>
