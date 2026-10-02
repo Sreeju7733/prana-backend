@@ -65,7 +65,7 @@ interface PatientRecord {
   }>;
 }
 
-export default function ParamedicAppPage() {
+export default function ParamedicAppWhite() {
   const [session, setSession] = useState<ParamedicSession | null>(null);
   const [badgeCode, setBadgeCode] = useState("PARAM-7701");
   const [badgePhone, setBadgePhone] = useState("9811223344");
@@ -141,24 +141,24 @@ export default function ParamedicAppPage() {
   };
 
   return (
-    <div className="min-h-screen bg-slate-950 text-slate-100 flex flex-col font-sans max-w-md mx-auto border-x border-slate-800 shadow-2xl">
+    <div className="min-h-screen bg-slate-50 text-slate-900 flex flex-col font-sans max-w-md mx-auto border-x border-slate-200 shadow-sm antialiased">
       {/* Mobile App Header */}
-      <header className="bg-slate-900 border-b border-slate-800 p-4 sticky top-0 z-50 flex items-center justify-between">
+      <header className="bg-white border-b border-slate-200 p-4 sticky top-0 z-50 flex items-center justify-between shadow-xs">
         <div className="flex items-center gap-2.5">
-          <div className="w-8 h-8 rounded-lg bg-red-600 flex items-center justify-center text-white text-lg font-black">
+          <div className="w-8 h-8 rounded-lg bg-red-600 flex items-center justify-center text-white text-base font-bold shadow-xs">
             🚑
           </div>
           <div>
-            <h1 className="text-sm font-black text-white uppercase tracking-tight">Paramedic PWA</h1>
-            <p className="text-[10px] text-red-400 font-mono">EMERGENCY FIELD UNIT</p>
+            <h1 className="text-sm font-bold text-slate-900 uppercase tracking-tight">Paramedic Field App</h1>
+            <p className="text-[10px] text-red-600 font-semibold font-mono">EMERGENCY FIRST RESPONDER</p>
           </div>
         </div>
 
         <div className="flex items-center gap-2">
-          <Link href="/scan" className="text-[11px] bg-slate-800 hover:bg-slate-700 px-2.5 py-1 rounded font-bold">
+          <Link href="/scan" className="text-[11px] bg-slate-100 hover:bg-slate-200 border border-slate-200 px-2.5 py-1 rounded-md font-semibold text-slate-700">
             📷 QR
           </Link>
-          <Link href="/hospitals" className="text-[11px] bg-teal-950 text-teal-300 border border-teal-800 px-2.5 py-1 rounded font-bold">
+          <Link href="/hospitals" className="text-[11px] bg-teal-50 text-teal-800 border border-teal-200 px-2.5 py-1 rounded-md font-semibold">
             🏥 Hospital
           </Link>
         </div>
@@ -166,165 +166,165 @@ export default function ParamedicAppPage() {
 
       {/* Main Body */}
       <main className="flex-1 p-4 space-y-4">
-        {/* Badge Login Modal / Card */}
+        {/* Badge Login Card */}
         {!session ? (
-          <div className="bg-slate-900 border border-slate-800 rounded-2xl p-5 space-y-3.5 shadow-xl">
-            <div className="flex items-center justify-between pb-2 border-b border-slate-800">
-              <span className="text-xs font-bold text-slate-400 uppercase tracking-wider">
-                Paramedic Badge Authentication
+          <div className="bg-white border border-slate-200 rounded-xl p-5 space-y-3.5 shadow-xs">
+            <div className="flex items-center justify-between pb-2 border-b border-slate-100">
+              <span className="text-xs font-bold text-slate-700 uppercase tracking-wider">
+                Responder Badge Verification
               </span>
-              <span className="text-[10px] bg-red-950 border border-red-800 text-red-400 font-bold px-2 py-0.5 rounded">
-                Tier-3 Clearance
+              <span className="text-[10px] bg-red-50 border border-red-200 text-red-700 font-bold px-2 py-0.5 rounded">
+                Tier-3
               </span>
             </div>
 
-            <form onSubmit={handleLogin} className="space-y-3">
+            <form onSubmit={handleLogin} className="space-y-3 text-xs">
               <div>
-                <label className="block text-[11px] font-bold text-slate-300 mb-1">
-                  Badge Code / Responder ID
+                <label className="block font-bold text-slate-700 mb-1">
+                  Badge Code / Responder Code
                 </label>
                 <input
                   type="text"
                   value={badgeCode}
                   onChange={(e) => setBadgeCode(e.target.value)}
                   placeholder="PARAM-7701"
-                  className="w-full bg-slate-950 border border-slate-700 rounded-xl px-3 py-2 text-xs font-mono text-cyan-300 outline-none"
+                  className="w-full bg-white border border-slate-300 rounded-lg px-3 py-2 font-mono text-slate-900 outline-none focus:ring-1 focus:ring-red-600"
                   required
                 />
               </div>
 
               <div>
-                <label className="block text-[11px] font-bold text-slate-300 mb-1">
-                  Official Phone
+                <label className="block font-bold text-slate-700 mb-1">
+                  Official Mobile Number
                 </label>
                 <input
                   type="tel"
                   value={badgePhone}
                   onChange={(e) => setBadgePhone(e.target.value)}
                   placeholder="9811223344"
-                  className="w-full bg-slate-950 border border-slate-700 rounded-xl px-3 py-2 text-xs font-mono text-slate-200 outline-none"
+                  className="w-full bg-white border border-slate-300 rounded-lg px-3 py-2 font-mono text-slate-900 outline-none focus:ring-1 focus:ring-red-600"
                 />
               </div>
 
               {authError && (
-                <div className="p-2.5 rounded-lg bg-red-950/70 border border-red-800 text-[11px] text-red-300">
-                  ⚠️ {authError}
+                <div className="p-2.5 rounded-lg bg-red-50 border border-red-200 text-[11px] text-red-700 font-medium">
+                  {authError}
                 </div>
               )}
 
               <button
                 type="submit"
                 disabled={isLoggingIn}
-                className="w-full bg-red-600 hover:bg-red-500 text-white font-bold py-2.5 rounded-xl text-xs transition shadow"
+                className="w-full bg-red-600 hover:bg-red-700 text-white font-bold py-2.5 rounded-lg text-xs transition shadow-xs"
               >
-                {isLoggingIn ? "Verifying..." : "Authorize Paramedic Terminal"}
+                {isLoggingIn ? "Verifying Credentials..." : "Authorize Paramedic Badge"}
               </button>
             </form>
           </div>
         ) : (
-          <div className="bg-slate-900 border border-slate-800 rounded-xl p-3 flex items-center justify-between text-xs">
+          <div className="bg-white border border-slate-200 rounded-xl p-3 flex items-center justify-between text-xs shadow-xs">
             <div>
-              <div className="font-bold text-white flex items-center gap-1.5">
-                <span className="w-2 h-2 rounded-full bg-emerald-400 animate-pulse"></span>
+              <div className="font-bold text-slate-900 flex items-center gap-1.5">
+                <span className="w-2 h-2 rounded-full bg-emerald-500"></span>
                 {session.name}
               </div>
-              <span className="text-[10px] text-cyan-400 font-mono">{session.responder_code} • {session.organization}</span>
+              <div className="text-[10px] text-slate-500 font-mono mt-0.5">{session.responder_code} • {session.organization}</div>
             </div>
             <button
               onClick={() => { setSession(null); localStorage.removeItem("prana_paramedic_app_session"); }}
-              className="text-[10px] bg-red-950 text-red-300 px-2 py-1 rounded border border-red-800"
+              className="text-[10px] font-bold bg-slate-100 text-slate-600 px-2 py-1 rounded border border-slate-200 hover:bg-slate-200"
             >
-              Logout
+              Sign out
             </button>
           </div>
         )}
 
-        {/* Search Patient Bar */}
-        <div className="bg-slate-900 border border-slate-800 rounded-2xl p-4 space-y-2">
-          <label className="block text-xs font-bold text-slate-300">Enter Patient PRANA ID</label>
+        {/* PRANA Search Bar */}
+        <div className="bg-white border border-slate-200 rounded-xl p-4 space-y-2 shadow-xs">
+          <label className="block text-xs font-bold text-slate-700">Enter Patient PRANA ID</label>
           <div className="flex gap-2">
             <input
               type="text"
               value={pranaInput}
               onChange={(e) => setPranaInput(e.target.value)}
               placeholder="PRAN-ba42c5c2"
-              className="flex-1 bg-slate-950 border border-slate-700 rounded-xl px-3 py-2 text-xs font-mono text-white outline-none uppercase"
+              className="flex-1 bg-white border border-slate-300 rounded-lg px-3 py-2 text-xs font-mono text-slate-900 outline-none uppercase focus:ring-1 focus:ring-red-600"
             />
             <button
               onClick={() => fetchEmergencyRecord(pranaInput)}
               disabled={isFetching || !pranaInput}
-              className="bg-red-600 hover:bg-red-500 disabled:opacity-50 text-white font-bold px-3.5 rounded-xl text-xs transition"
+              className="bg-red-600 hover:bg-red-700 disabled:opacity-50 text-white font-bold px-3.5 rounded-lg text-xs transition shadow-xs"
             >
               {isFetching ? "..." : "Fetch"}
             </button>
           </div>
 
           {errorMsg && (
-            <div className="p-2.5 rounded-lg bg-red-950/70 border border-red-800 text-[11px] text-red-300">
-              ❌ {errorMsg}
+            <div className="p-2.5 rounded-lg bg-red-50 border border-red-200 text-[11px] text-red-700 font-medium">
+              {errorMsg}
             </div>
           )}
         </div>
 
-        {/* Patient Emergency Details */}
+        {/* Patient Details Display */}
         {patientData && (
           <div className="space-y-3 animate-fade-in">
             {/* Identity Card */}
-            <div className="bg-slate-900 border border-slate-800 rounded-2xl p-4 flex items-center justify-between">
+            <div className="bg-white border border-slate-200 rounded-xl p-4 flex items-center justify-between shadow-xs">
               <div>
-                <h2 className="text-xl font-black text-white">{patientData.patient.full_name}</h2>
-                <div className="text-xs text-slate-400 font-medium">
-                  {patientData.patient.age || 19} Yrs • {patientData.patient.gender} • <span className="font-mono text-cyan-400">{patientData.patient.prana_id}</span>
+                <h2 className="text-lg font-bold text-slate-900">{patientData.patient.full_name}</h2>
+                <div className="text-xs text-slate-500 font-medium">
+                  {patientData.patient.age || 19} Yrs • {patientData.patient.gender} • <span className="font-mono font-bold text-slate-700">{patientData.patient.prana_id}</span>
                 </div>
               </div>
 
-              <div className="bg-slate-950 border-2 border-red-500 rounded-xl px-3 py-1.5 text-center">
-                <span className="block text-[8px] uppercase font-bold text-red-400">Blood</span>
-                <span className="text-xl font-black text-red-500">{patientData.patient.blood_group}</span>
+              <div className="bg-red-50 border border-red-200 rounded-xl px-3.5 py-1.5 text-center">
+                <span className="block text-[8px] uppercase font-bold text-red-600">Blood Group</span>
+                <span className="text-xl font-black text-red-700">{patientData.patient.blood_group}</span>
               </div>
             </div>
 
             {/* Critical Allergies */}
-            <div className="bg-red-950/40 border-2 border-red-600 rounded-2xl p-4 space-y-2">
-              <span className="text-xs font-black text-red-400 uppercase tracking-wider flex items-center gap-1.5">
-                <span>⚠️</span> CRITICAL ALLERGIES & ADVERSE REACTIONS
+            <div className="bg-red-50/70 border border-red-200 rounded-xl p-4 space-y-2">
+              <span className="text-xs font-bold text-red-800 uppercase tracking-wider flex items-center gap-1.5">
+                <span>⚠️</span> Critical Allergies & Adverse Reactions
               </span>
               {patientData.allergies && patientData.allergies.length > 0 ? (
-                <ul className="space-y-1">
+                <ul className="space-y-1.5">
                   {patientData.allergies.map((a, idx) => (
-                    <li key={idx} className="text-xs font-bold text-red-200">
-                      • {a.allergen} ({a.severity || "Severe"}) - {a.reaction_description || "Anaphylaxis risk"}
+                    <li key={idx} className="text-xs text-slate-800">
+                      <strong>• {a.allergen}</strong> ({a.severity || "Severe"}) - {a.reaction_description || "Anaphylaxis risk"}
                     </li>
                   ))}
                 </ul>
               ) : (
-                <p className="text-xs text-emerald-400">No known critical drug allergies</p>
+                <p className="text-xs text-emerald-700 font-medium">No critical drug allergies on record.</p>
               )}
             </div>
 
-            {/* Current Medications */}
+            {/* Medications */}
             {patientData.medications && patientData.medications.length > 0 && (
-              <div className="bg-slate-900 border border-slate-800 rounded-2xl p-4 space-y-2">
-                <span className="text-xs font-bold text-slate-400 uppercase">Current Medications</span>
-                <ul className="space-y-1">
+              <div className="bg-white border border-slate-200 rounded-xl p-4 space-y-2 shadow-xs">
+                <span className="text-xs font-bold text-slate-700 uppercase">Active Medications</span>
+                <ul className="space-y-1 text-xs">
                   {patientData.medications.map((m, idx) => (
-                    <li key={idx} className="text-xs text-emerald-300 font-medium">
-                      • {m.name} {m.dose} ({m.frequency || "Daily"})
+                    <li key={idx} className="text-slate-800">
+                      • <strong>{m.name}</strong> <span className="text-slate-500">{m.dose}</span>
                     </li>
                   ))}
                 </ul>
               </div>
             )}
 
-            {/* Vitals Telemetry */}
+            {/* Baseline Vitals */}
             {patientData.vitals && patientData.vitals.length > 0 && (
-              <div className="bg-slate-900 border border-slate-800 rounded-2xl p-4 space-y-2">
-                <span className="text-xs font-bold text-slate-400 uppercase">Baseline Vitals</span>
-                <div className="grid grid-cols-2 gap-2">
+              <div className="bg-white border border-slate-200 rounded-xl p-4 space-y-2 shadow-xs">
+                <span className="text-xs font-bold text-slate-700 uppercase">Baseline Telemetry</span>
+                <div className="grid grid-cols-2 gap-2 text-xs">
                   {patientData.vitals.map((v, idx) => (
-                    <div key={idx} className="bg-slate-950 p-2 rounded-xl border border-slate-800 text-center">
-                      <span className="block text-[9px] uppercase font-bold text-slate-400">{v.vital_type.replace("_", " ")}</span>
-                      <span className="text-sm font-black text-teal-400">{v.value} {v.unit}</span>
+                    <div key={idx} className="p-2.5 bg-slate-50 border border-slate-200 rounded-lg text-center">
+                      <span className="block text-[9px] uppercase font-bold text-slate-500">{v.vital_type.replace("_", " ")}</span>
+                      <span className="text-base font-black text-slate-900">{v.value} {v.unit}</span>
                     </div>
                   ))}
                 </div>
@@ -333,18 +333,18 @@ export default function ParamedicAppPage() {
 
             {/* Emergency Contacts */}
             {patientData.contacts && patientData.contacts.length > 0 && (
-              <div className="bg-slate-900 border border-slate-800 rounded-2xl p-4 space-y-2">
-                <span className="text-xs font-bold text-slate-400 uppercase">Emergency Relay</span>
-                <div className="space-y-2">
+              <div className="bg-white border border-slate-200 rounded-xl p-4 space-y-2 shadow-xs">
+                <span className="text-xs font-bold text-slate-700 uppercase">Emergency Relay</span>
+                <div className="space-y-2 text-xs">
                   {patientData.contacts.map((c, idx) => (
-                    <div key={idx} className="bg-slate-950 p-3 rounded-xl flex items-center justify-between border border-slate-800">
+                    <div key={idx} className="p-3 bg-slate-50 border border-slate-200 rounded-lg flex items-center justify-between">
                       <div>
-                        <div className="font-bold text-white text-xs">{c.name}</div>
-                        <div className="text-[10px] text-slate-400">{c.relationship}</div>
+                        <div className="font-bold text-slate-800">{c.name}</div>
+                        <div className="text-[10px] text-slate-500">{c.relationship}</div>
                       </div>
                       <a
                         href={`tel:${c.phone || c.phone_number}`}
-                        className="bg-emerald-600 hover:bg-emerald-500 text-white font-bold text-xs px-3 py-1.5 rounded-lg"
+                        className="bg-emerald-600 hover:bg-emerald-700 text-white font-bold text-xs px-3 py-1.5 rounded-lg transition"
                       >
                         📞 Call
                       </a>
