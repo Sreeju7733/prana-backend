@@ -96,7 +96,7 @@ export function pack(data: PatientData): PackedData {
   const flagBytes = new Uint8Array(2);
   for (const flagId of data.criticalFlags) {
     const idx = getFlagIndex(flagId);
-    if (idx >= 0 && idx < 16) {
+    if (idx !== null && idx >= 0 && idx < 16) {
       flagBytes[Math.floor(idx / 8)] |= (1 << (idx % 8));
     }
   }
@@ -111,7 +111,7 @@ export function pack(data: PatientData): PackedData {
     const idx = getAllergenIndex(item.allergen);
     const sev = SEVERITY_MAP[item.severity.toLowerCase()] ?? 0;
 
-    if (idx >= 0) {
+    if (idx !== null && idx >= 0) {
       // 1 byte marker (< 250) + 1 byte severity
       if (!addByte(idx)) return overflow();
       if (!addByte(sev)) return overflow();
@@ -132,7 +132,7 @@ export function pack(data: PatientData): PackedData {
     const idx = getMedicineIndex(med.name);
     const freqIdx = getFrequencyIndex(med.frequency);
 
-    if (idx >= 0) {
+    if (idx !== null && idx >= 0) {
       if (!addByte(idx)) return overflow();
     } else {
       if (!addByte(255)) return overflow();
@@ -143,7 +143,7 @@ export function pack(data: PatientData): PackedData {
     if (!addString(med.dose, 8)) return overflow();
 
     // Frequency (1 byte: 0-13)
-    if (!addByte(freqIdx >= 0 ? freqIdx : 0)) return overflow();
+    if (!addByte(freqIdx !== null && freqIdx >= 0 ? freqIdx : 0)) return overflow();
   }
 
   // ─── Conditions (Priority 3) ──────────────────────────────────────────────
@@ -154,7 +154,7 @@ export function pack(data: PatientData): PackedData {
     const cond = data.conditions[i];
     const idx = getConditionIndex(cond.code);
 
-    if (idx >= 0) {
+    if (idx !== null && idx >= 0) {
       if (!addByte(idx)) return overflow();
     } else {
       if (!addByte(255)) return overflow();
