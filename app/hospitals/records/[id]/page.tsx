@@ -319,10 +319,10 @@ export default function HospitalPatientRecordPage() {
               </div>
             </div>
 
-            {/* Blood Group Display (Big) */}
-            <div className="bg-red-50 border-2 border-red-200 rounded-2xl px-6 py-3 text-center min-w-[120px]">
-              <span className="block text-[10px] uppercase font-bold text-red-600 tracking-wider">Blood Group</span>
-              <span className="text-3xl font-black text-red-700">{patientData.patient.blood_group}</span>
+            {/* Blood Group Display (Big) - Neutral bold dark badge, saving red for critical allergies */}
+            <div className="bg-slate-900 text-white border-2 border-slate-700 rounded-2xl px-6 py-3 text-center min-w-[120px] shadow-xs">
+              <span className="block text-[10px] uppercase font-bold text-slate-300 tracking-wider">Blood Group</span>
+              <span className="text-3xl font-black text-white">{patientData.patient.blood_group}</span>
             </div>
           </div>
 
