@@ -1,23 +1,129 @@
 "use client";
 
-import React, { useState } from "react";
+import React, { useState, useEffect, useRef } from "react";
 import { useRouter } from "next/navigation";
 import Link from "next/link";
+
+interface HospitalItem {
+  id: string;
+  hospital_id: string;
+  name: string;
+  registration_number: string;
+  city?: string;
+  state?: string;
+  default_pass?: string;
+}
 
 export default function HospitalLoginPage() {
   const router = useRouter();
 
-  const [hospitalId, setHospitalId] = useState("HOSP-AIIMS-01");
-  const [password, setPassword] = useState("1234");
+  const [hospitalsList, setHospitalsList] = useState<HospitalItem[]>([
+    {
+      id: "4deb47bf-74ce-40d0-a36d-0fa174f4a1f5",
+      hospital_id: "HOSP-AIIMS-01",
+      name: "AIIMS New Delhi - Trauma & Emergency Center",
+      registration_number: "REG-AIIMS-2024-001",
+      city: "New Delhi",
+      state: "Delhi",
+      default_pass: "aiims@123",
+    },
+    {
+      id: "155dc910-9cdb-499d-9afe-7a7cc6adf29b",
+      hospital_id: "HOSP-MAX-02",
+      name: "Max Super Speciality Hospital Saket",
+      registration_number: "REG-MAX-2023-042",
+      city: "New Delhi",
+      state: "Delhi",
+      default_pass: "max@123",
+    },
+    {
+      id: "4b08c84c-349d-48f2-8a5f-7ff27ed141b6",
+      hospital_id: "HOSP-APOLLO-03",
+      name: "Indraprastha Apollo Hospitals",
+      registration_number: "REG-APOLLO-2022-819",
+      city: "New Delhi",
+      state: "Delhi",
+      default_pass: "apollo@123",
+    },
+    {
+      id: "2fadccb6-172f-4345-a2ae-8a0d5a1f0878",
+      hospital_id: "HOSP-FORTIS-04",
+      name: "Fortis Memorial Research Institute",
+      registration_number: "REG-FORTIS-2023-110",
+      city: "Gurugram",
+      state: "Haryana",
+      default_pass: "fortis@123",
+    },
+  ]);
+
+  const [selectedHospital, setSelectedHospital] = useState<HospitalItem>(hospitalsList[0]);
+  const [searchTerm, setSearchTerm] = useState("");
+  const [isDropdownOpen, setIsDropdownOpen] = useState(false);
+  const [password, setPassword] = useState("aiims@123");
   const [isLoading, setIsLoading] = useState(false);
   const [error, setError] = useState<string | null>(null);
 
-  const hospitalsList = [
-    { id: "HOSP-AIIMS-01", name: "AIIMS New Delhi - Trauma & Emergency Center", reg: "REG-AIIMS-2024-001" },
-    { id: "HOSP-MAX-02", name: "Max Super Speciality Hospital Saket", reg: "REG-MAX-2023-042" },
-    { id: "HOSP-APOLLO-03", name: "Indraprastha Apollo Hospitals", reg: "REG-APOLLO-2022-819" },
-    { id: "HOSP-FORTIS-04", name: "Fortis Memorial Research Institute", reg: "REG-FORTIS-2023-110" },
-  ];
+  const dropdownRef = useRef<HTMLDivElement>(null);
+
+  // Fetch registered hospitals from API if available
+  useEffect(() => {
+    async function loadHospitals() {
+      try {
+        const res = await fetch("/api/hospitals");
+        const json = await res.json();
+        if (json.success && Array.isArray(json.data) && json.data.length > 0) {
+          const passMap: Record<string, string> = {
+            "HOSP-AIIMS-01": "aiims@123",
+            "HOSP-MAX-02": "max@123",
+            "HOSP-APOLLO-03": "apollo@123",
+            "HOSP-FORTIS-04": "fortis@123",
+          };
+          const mapped = json.data.map((h: HospitalItem) => ({
+            ...h,
+            default_pass: passMap[h.hospital_id] || "1234",
+          }));
+          setHospitalsList(mapped);
+          setSelectedHospital(mapped[0]);
+          setPassword(mapped[0].default_pass || "1234");
+        }
+      } catch {
+        // Fall back to default static list
+      }
+    }
+    loadHospitals();
+  }, []);
+
+  // Close dropdown on outside click
+  useEffect(() => {
+    function handleClickOutside(e: MouseEvent) {
+      if (dropdownRef.current && !dropdownRef.current.contains(e.target as Node)) {
+        setIsDropdownOpen(false);
+      }
+    }
+    document.addEventListener("mousedown", handleClickOutside);
+    return () => document.removeEventListener("mousedown", handleClickOutside);
+  }, []);
+
+  // Filter hospitals based on search input
+  const filteredHospitals = hospitalsList.filter((h) => {
+    const term = searchTerm.toLowerCase().trim();
+    if (!term) return true;
+    return (
+      h.name.toLowerCase().includes(term) ||
+      h.hospital_id.toLowerCase().includes(term) ||
+      h.registration_number.toLowerCase().includes(term) ||
+      (h.city && h.city.toLowerCase().includes(term))
+    );
+  });
+
+  const handleSelectHospital = (h: HospitalItem) => {
+    setSelectedHospital(h);
+    setIsDropdownOpen(false);
+    setSearchTerm("");
+    // Automatically fill in password for this hospital
+    setPassword(h.default_pass || "1234");
+    setError(null);
+  };
 
   const handleLogin = async (e: React.FormEvent) => {
     e.preventDefault();
@@ -29,7 +135,7 @@ export default function HospitalLoginPage() {
         method: "POST",
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify({
-          hospital_id: hospitalId.trim(),
+          hospital_id: selectedHospital.hospital_id.trim(),
           password: password.trim(),
           pin: password.trim(),
         }),
@@ -94,7 +200,7 @@ export default function HospitalLoginPage() {
             </div>
             <h1 className="text-xl font-bold text-slate-900 tracking-tight">Hospital Clinical Login</h1>
             <p className="text-xs text-slate-500">
-              Sign in with your hospital ID and password.
+              Sign in with your hospital ID and facility password.
             </p>
           </div>
 
@@ -106,32 +212,104 @@ export default function HospitalLoginPage() {
           )}
 
           <form onSubmit={handleLogin} className="space-y-4 text-xs">
-            <div>
+            {/* Searchable Hospital Selector */}
+            <div className="relative" ref={dropdownRef}>
               <label className="block font-bold text-slate-700 mb-1">
                 Select Accredited Hospital Facility
               </label>
-              <select
-                value={hospitalId}
-                onChange={(e) => setHospitalId(e.target.value)}
-                className="w-full bg-white border border-slate-300 rounded-lg px-3 py-2 text-slate-900 outline-none focus:ring-1 focus:ring-teal-600"
+
+              {/* Trigger Button */}
+              <button
+                type="button"
+                onClick={() => setIsDropdownOpen(!isDropdownOpen)}
+                className="w-full bg-white border border-slate-300 hover:border-teal-600 focus:border-teal-600 focus:ring-1 focus:ring-teal-600 rounded-lg px-3.5 py-2.5 text-left flex items-center justify-between transition shadow-2xs"
               >
-                {hospitalsList.map((h) => (
-                  <option key={h.id} value={h.id}>
-                    {h.name} ({h.id})
-                  </option>
-                ))}
-              </select>
+                <div className="min-w-0 pr-2">
+                  <div className="font-bold text-slate-900 truncate text-xs">
+                    {selectedHospital.name}
+                  </div>
+                  <div className="text-[11px] font-mono text-teal-700">
+                    {selectedHospital.hospital_id} • {selectedHospital.city || "Delhi"}
+                  </div>
+                </div>
+                <span className="text-slate-400 text-xs shrink-0">{isDropdownOpen ? "▲" : "▼"}</span>
+              </button>
+
+              {/* Searchable Dropdown Menu */}
+              {isDropdownOpen && (
+                <div className="absolute top-full left-0 right-0 mt-1.5 bg-white border border-slate-200 rounded-xl shadow-lg z-50 overflow-hidden animate-fade-in">
+                  {/* Search Bar Input */}
+                  <div className="p-2 border-b border-slate-100 bg-slate-50">
+                    <div className="relative">
+                      <span className="absolute left-2.5 top-2 text-slate-400 text-xs">🔍</span>
+                      <input
+                        type="text"
+                        value={searchTerm}
+                        onChange={(e) => setSearchTerm(e.target.value)}
+                        placeholder="Search hospital by name, ID, or city..."
+                        autoFocus
+                        className="w-full bg-white border border-slate-300 rounded-lg pl-8 pr-3 py-1.5 text-xs text-slate-900 outline-none focus:border-teal-600 focus:ring-1 focus:ring-teal-600"
+                      />
+                    </div>
+                  </div>
+
+                  {/* Filtered Hospitals List */}
+                  <div className="max-h-56 overflow-y-auto divide-y divide-slate-100">
+                    {filteredHospitals.length > 0 ? (
+                      filteredHospitals.map((h) => (
+                        <button
+                          key={h.id}
+                          type="button"
+                          onClick={() => handleSelectHospital(h)}
+                          className={`w-full text-left px-3.5 py-2.5 hover:bg-teal-50 transition flex items-start justify-between gap-2 ${
+                            selectedHospital.hospital_id === h.hospital_id ? "bg-teal-50/70 border-l-4 border-teal-600" : ""
+                          }`}
+                        >
+                          <div className="min-w-0">
+                            <div className="font-bold text-xs text-slate-900 truncate">
+                              {h.name}
+                            </div>
+                            <div className="text-[11px] font-mono text-slate-500 mt-0.5">
+                              <span className="text-teal-700 font-bold">{h.hospital_id}</span> • {h.city || "Delhi"}
+                            </div>
+                          </div>
+                          {selectedHospital.hospital_id === h.hospital_id && (
+                            <span className="text-teal-700 font-bold text-xs shrink-0">✓</span>
+                          )}
+                        </button>
+                      ))
+                    ) : (
+                      <div className="p-4 text-center text-xs text-slate-500">
+                        No hospital matches &quot;{searchTerm}&quot;
+                      </div>
+                    )}
+                  </div>
+                </div>
+              )}
             </div>
 
+            {/* Hospital Password / PIN */}
             <div>
-              <label className="block font-bold text-slate-700 mb-1">
-                Hospital Facility Access Password / PIN
-              </label>
+              <div className="flex items-center justify-between mb-1">
+                <label className="font-bold text-slate-700">
+                  Hospital Access Password / PIN
+                </label>
+                {selectedHospital.default_pass && (
+                  <button
+                    type="button"
+                    onClick={() => setPassword(selectedHospital.default_pass || "")}
+                    className="text-[11px] text-teal-700 hover:text-teal-800 font-mono font-bold hover:underline"
+                    title="Fill default password for this facility"
+                  >
+                    Pass: {selectedHospital.default_pass}
+                  </button>
+                )}
+              </div>
               <input
                 type="password"
                 value={password}
                 onChange={(e) => setPassword(e.target.value)}
-                placeholder="Enter hospital terminal password (e.g. 1234)"
+                placeholder={`Enter password for ${selectedHospital.hospital_id}`}
                 className="w-full bg-white border border-slate-300 rounded-lg px-3 py-2 font-mono text-slate-900 outline-none focus:ring-1 focus:ring-teal-600"
                 required
               />
@@ -142,7 +320,7 @@ export default function HospitalLoginPage() {
               disabled={isLoading}
               className="w-full bg-teal-600 hover:bg-teal-700 text-white font-bold py-2.5 rounded-lg text-xs transition shadow-xs disabled:opacity-50 mt-2"
             >
-              {isLoading ? "Authenticating Facility..." : "Sign In to Hospital Portal"}
+              {isLoading ? "Authenticating Facility..." : `Sign In to ${selectedHospital.hospital_id}`}
             </button>
           </form>
         </div>

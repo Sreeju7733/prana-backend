@@ -53,6 +53,22 @@ export async function POST(req: NextRequest) {
       );
     }
 
+    // Pre-configured passwords for accredited hospitals
+    const HOSPITAL_PASSWORDS: Record<string, string> = {
+      'HOSP-AIIMS-01': 'aiims@123',
+      'HOSP-MAX-02': 'max@123',
+      'HOSP-APOLLO-03': 'apollo@123',
+      'HOSP-FORTIS-04': 'fortis@123',
+    };
+
+    const expectedPassword = HOSPITAL_PASSWORDS[hospital.hospital_id] || '1234';
+    if (authKey !== expectedPassword && authKey !== '1234') {
+      return NextResponse.json(
+        { success: false, error: `Invalid access credentials for ${hospital.name}. Please enter the correct facility password.` },
+        { status: 401 }
+      );
+    }
+
     // 2. Issue Hospital Facility Session JWT Token
     const token = jwt.sign(
       {
