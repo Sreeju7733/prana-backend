@@ -73,6 +73,9 @@ export async function POST(req: NextRequest) {
     const cleanId = (hospital_id && String(hospital_id).trim()) || 
       `HOSP-${name.replace(/[^a-zA-Z0-9]/g, '').substring(0, 6).toUpperCase()}-${Math.floor(1000 + Math.random() * 9000)}`;
 
+    // Generate secure temporary password
+    const tempPassword = `PRANA@${Math.random().toString(36).substring(2, 7).toUpperCase()}#${Math.floor(100 + Math.random() * 900)}`;
+
     const { data, error } = await supabase
       .from('verified_hospitals')
       .insert({
@@ -80,8 +83,8 @@ export async function POST(req: NextRequest) {
         name: name.trim(),
         registration_number: registration_number.trim(),
         address: address?.trim() || null,
-        city: city?.trim() || 'New Delhi',
-        state: state?.trim() || 'Delhi',
+        city: city?.trim() || 'Bengaluru',
+        state: state?.trim() || 'Karnataka',
         country: country || 'IN',
         is_active: true,
         verified_at: new Date().toISOString()
@@ -93,7 +96,14 @@ export async function POST(req: NextRequest) {
       return NextResponse.json({ success: false, error: error.message }, { status: 400 });
     }
 
-    return NextResponse.json({ success: true, data }, { status: 201 });
+    return NextResponse.json({ 
+      success: true, 
+      data: {
+        ...data,
+        temporary_password: tempPassword,
+        must_change_password_on_first_login: true,
+      } 
+    }, { status: 201 });
   } catch (err: unknown) {
     const message = err instanceof Error ? err.message : 'Server error';
     return NextResponse.json({ success: false, error: message }, { status: 500 });
