@@ -1,9 +1,14 @@
 import { NextRequest, NextResponse } from 'next/server';
-import { supabase } from '@/lib/auth';
+import { supabase, verifyAdminToken } from '@/lib/auth';
 
 // GET /api/admin/metrics - Superadmin high-level system overview
 export async function GET(req: NextRequest) {
   try {
+    try {
+      verifyAdminToken(req);
+    } catch {
+      return NextResponse.json({ success: false, error: 'Unauthorized: Admin privileges required.' }, { status: 401 });
+    }
     const [
       { count: hospitalCount },
       { count: activeHospitalCount },

@@ -1,9 +1,19 @@
 import { NextRequest, NextResponse } from 'next/server';
-import { supabase } from '@/lib/auth';
+import { supabase, verifyHospitalToken } from '@/lib/auth';
 
-// GET /api/responders - List all verified responders / paramedics (Superadmin)
+// GET /api/responders - List verified responders / paramedics (Scoped by caller)
 export async function GET(req: NextRequest) {
   try {
+    let callerClaims;
+    try {
+      callerClaims = verifyHospitalToken(req);
+    } catch {
+      return NextResponse.json(
+        { success: false, error: 'Unauthorized: Authentication token required.' },
+        { status: 401 }
+      );
+    }
+
     const { searchParams } = new URL(req.url);
     const org = searchParams.get('org');
     const query = searchParams.get('q');
@@ -13,7 +23,12 @@ export async function GET(req: NextRequest) {
       .select('*')
       .order('created_at', { ascending: false });
 
-    if (org) {
+    // If caller is a hospital (not superadmin), strictly scope to their own facility
+    if (callerClaims.role === 'hospital_facility') {
+      const hospName = callerClaims.hospital_name || '';
+      const hospId = callerClaims.hospital_id || '';
+      dbQuery = dbQuery.or(`organization.ilike.%${hospName}%,organization.ilike.%${hospId}%`);
+    } else if (org) {
       dbQuery = dbQuery.eq('organization', org);
     }
 
@@ -34,9 +49,16 @@ export async function GET(req: NextRequest) {
   }
 }
 
-// POST /api/responders - Superadmin provisions a new responder
+// POST /api/responders - Superadmin or hospital provisions a new responder
 export async function POST(req: NextRequest) {
   try {
+    let callerClaims;
+    try {
+      callerClaims = verifyHospitalToken(req);
+    } catch {
+      return NextResponse.json({ success: false, error: 'Unauthorized: Authentication required.' }, { status: 401 });
+    }
+
     const body = await req.json();
     const { name, responder_code, employee_id, phone, organization, organization_type = 'hospital' } = body;
 
@@ -46,6 +68,7 @@ export async function POST(req: NextRequest) {
 
     const generatedCode = responder_code?.trim() || `RESP-${Math.floor(100000 + Math.random() * 900000)}`;
     const generatedEmpId = employee_id?.trim() || `EMP-${Math.floor(1000 + Math.random() * 9000)}`;
+    const assignedOrg = callerClaims.role === 'hospital_facility' ? callerClaims.hospital_name : (organization?.trim() || 'General Emergency Services');
 
     const { data, error } = await supabase
       .from('verified_responders')
@@ -54,7 +77,7 @@ export async function POST(req: NextRequest) {
         responder_code: generatedCode.toUpperCase(),
         employee_id: generatedEmpId,
         phone: phone.trim(),
-        organization: organization?.trim() || 'General Emergency Services',
+        organization: assignedOrg,
         organization_type: organization_type || 'hospital',
         is_active: true,
         last_verified_at: new Date().toISOString(),
@@ -77,6 +100,12 @@ export async function POST(req: NextRequest) {
 // PATCH /api/responders - Toggle status or renew validity
 export async function PATCH(req: NextRequest) {
   try {
+    try {
+      verifyHospitalToken(req);
+    } catch {
+      return NextResponse.json({ success: false, error: 'Unauthorized: Authentication required.' }, { status: 401 });
+    }
+
     const body = await req.json();
     const { id, is_active, renew } = body;
 
@@ -113,6 +142,12 @@ export async function PATCH(req: NextRequest) {
 // DELETE /api/responders - Delete responder
 export async function DELETE(req: NextRequest) {
   try {
+    try {
+      verifyHospitalToken(req);
+    } catch {
+      return NextResponse.json({ success: false, error: 'Unauthorized: Authentication required.' }, { status: 401 });
+    }
+
     const { searchParams } = new URL(req.url);
     const id = searchParams.get('id');
 

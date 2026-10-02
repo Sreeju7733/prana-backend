@@ -1,9 +1,14 @@
 import { NextRequest, NextResponse } from 'next/server';
-import { supabase } from '@/lib/auth';
+import { supabase, verifyAdminToken } from '@/lib/auth';
 
 // GET /api/admin/patients - Search and retrieve registered patient profiles with health badges
 export async function GET(req: NextRequest) {
   try {
+    try {
+      verifyAdminToken(req);
+    } catch {
+      return NextResponse.json({ success: false, error: 'Unauthorized: Admin privileges required.' }, { status: 401 });
+    }
     const { searchParams } = new URL(req.url);
     const query = searchParams.get('q') || '';
     const limit = parseInt(searchParams.get('limit') || '30', 10);

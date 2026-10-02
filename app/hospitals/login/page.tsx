@@ -94,7 +94,7 @@ export default function HospitalLoginPage() {
             </div>
             <h1 className="text-xl font-bold text-slate-900 tracking-tight">Hospital Clinical Login</h1>
             <p className="text-xs text-slate-500">
-              Sign in with your accredited hospital facility ID and access password.
+              Sign in with your hospital ID and password.
             </p>
           </div>
 
@@ -145,13 +145,6 @@ export default function HospitalLoginPage() {
               {isLoading ? "Authenticating Facility..." : "Sign In to Hospital Portal"}
             </button>
           </form>
-
-          {/* Quick Credential Hints */}
-          <div className="p-3 bg-slate-50 border border-slate-200 rounded-lg text-[11px] text-slate-600 space-y-1">
-            <span className="font-bold text-slate-800 block">Demonstration Credentials:</span>
-            <div>Hospital ID: <span className="font-mono text-teal-800">AIIMS New Delhi (HOSP-AIIMS-01)</span></div>
-            <div>Password / PIN: <span className="font-mono text-slate-700 font-bold">1234</span></div>
-          </div>
         </div>
       </div>
     </div>

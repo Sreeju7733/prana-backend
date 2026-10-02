@@ -1,27 +1,49 @@
 import { NextRequest, NextResponse } from 'next/server';
-import { supabase } from '@/lib/auth';
+import { supabase, verifyHospitalToken } from '@/lib/auth';
 
 // GET /api/hospitals/search-patient?prana_id=PRAN-ba42c5c2
 export async function GET(req: NextRequest) {
   try {
+    // 0. Verify Hospital JWT Token on Server
+    let hospitalClaims;
+    try {
+      hospitalClaims = verifyHospitalToken(req);
+    } catch {
+      return NextResponse.json(
+        { success: false, error: 'Unauthorized: Valid hospital facility token required to access patient records.' },
+        { status: 401 }
+      );
+    }
+
     const { searchParams } = new URL(req.url);
     const pranaId = searchParams.get('prana_id') || searchParams.get('pid') || '';
-    const hospitalId = searchParams.get('hospital_id') || 'HOSP-GEN';
+    const reason = searchParams.get('reason') || '';
+    const hospitalId = hospitalClaims.hospital_id || searchParams.get('hospital_id') || 'HOSP-GEN';
+    const hospitalName = hospitalClaims.hospital_name || `Hospital (${hospitalId})`;
 
     if (!pranaId) {
-      return NextResponse.json({ success: false, error: 'PRANA ID is required for patient search' }, { status: 400 });
+      return NextResponse.json({ success: false, error: 'PRANA ID or phone number is required' }, { status: 400 });
     }
 
     const cleanPid = pranaId.trim();
     const digitsOnly = cleanPid.replace(/\D/g, '');
+    const isPhoneSearch = digitsOnly.length >= 7 && !cleanPid.toUpperCase().startsWith('PRAN-');
     const isUuid = /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i.test(cleanPid);
+
+    // Rule 5: Phone-number search must require a reason (Break-glass access)
+    if (isPhoneSearch && (!reason || reason.trim().length === 0)) {
+      return NextResponse.json({
+        success: false,
+        requires_reason: true,
+        error: 'Break-glass authorization required: Please specify the clinical justification (Emergency admission, Patient consenting, Referral) to search by phone number.'
+      }, { status: 403 });
+    }
 
     // 1. Fetch patient profile by PRANA ID, Phone number, or UUID
     let query = supabase.from('profiles').select('*');
     if (isUuid) {
       query = query.or(`prana_id.ilike.%${cleanPid}%,id.eq.${cleanPid},phone.ilike.%${cleanPid}%`);
-    } else if (digitsOnly.length >= 7) {
-      // Searching by phone number
+    } else if (isPhoneSearch) {
       query = query.or(`phone.ilike.%${digitsOnly}%,prana_id.ilike.%${cleanPid}%`);
     } else {
       query = query.or(`prana_id.ilike.%${cleanPid}%,phone.ilike.%${cleanPid}%,full_name.ilike.%${cleanPid}%`);
@@ -53,6 +75,7 @@ export async function GET(req: NextRequest) {
     }
 
     const uid = profile.id;
+    const accessReason = isPhoneSearch ? reason : (reason || 'Emergency Triage & Clinical Lookup');
 
     // 2. Fetch full medical record permitted for verified hospitals
     const [
@@ -75,21 +98,34 @@ export async function GET(req: NextRequest) {
       supabase.from('insurance_policies').select('*').eq('user_id', uid).maybeSingle()
     ]);
 
-    // 3. Log access in scan_logs as an authenticated Hospital Access Event
+    // 3. Log access in scan_logs with reason (Break-glass forensic trail)
     try {
       await supabase.from('scan_logs').insert([{
         user_id: uid,
         prana_id: profile.prana_id || cleanPid,
         hospital_id: hospitalId,
         access_tier: 'Red Tier (Hospital Clinical Access)',
-        scanner_type: 'Hospital Clinical Workstation',
-        location_city: 'Hospital Emergency Unit',
-        responder_org: `Verified Hospital (${hospitalId})`,
-        accessed_data_summary: 'Full Clinical Record: Allergies, Meds, Vitals, Conditions, Devices, Surgeries, Insurance',
+        scanner_type: isPhoneSearch ? 'Break-Glass Phone Search' : 'Hospital Clinical Workstation',
+        location_city: hospitalClaims.station_id || 'Hospital Emergency Unit',
+        responder_org: hospitalName,
+        accessed_data_summary: `Full Clinical Record accessed. Justification: ${accessReason}`,
         scanned_at: new Date().toISOString()
       }]);
     } catch {
       // Non-blocking log failure
+    }
+
+    // 4. Notify patient of the access event
+    try {
+      await supabase.from('notifications').insert([{
+        user_id: uid,
+        title: 'Emergency Medical Record Viewed',
+        message: `${hospitalName} viewed your clinical health record. Reason: ${accessReason}.`,
+        type: 'access_alert',
+        created_at: new Date().toISOString()
+      }]);
+    } catch {
+      // Non-blocking notification
     }
 
     // Format emergency contacts cleanly

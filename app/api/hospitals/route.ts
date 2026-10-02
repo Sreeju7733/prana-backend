@@ -1,5 +1,5 @@
 import { NextRequest, NextResponse } from 'next/server';
-import { supabase } from '@/lib/auth';
+import { supabase, verifyAdminToken } from '@/lib/auth';
 
 // GET /api/hospitals - List all registered hospitals (with optional search)
 export async function GET(req: NextRequest) {
@@ -53,6 +53,12 @@ export async function GET(req: NextRequest) {
 // POST /api/hospitals - Register a new verified hospital (Superadmin)
 export async function POST(req: NextRequest) {
   try {
+    try {
+      verifyAdminToken(req);
+    } catch {
+      return NextResponse.json({ success: false, error: 'Unauthorized: Admin privileges required.' }, { status: 401 });
+    }
+
     const body = await req.json();
     const { name, registration_number, address, city, state, country = 'IN', hospital_id } = body;
 
@@ -97,6 +103,12 @@ export async function POST(req: NextRequest) {
 // PATCH /api/hospitals - Toggle active status or update details
 export async function PATCH(req: NextRequest) {
   try {
+    try {
+      verifyAdminToken(req);
+    } catch {
+      return NextResponse.json({ success: false, error: 'Unauthorized: Admin privileges required.' }, { status: 401 });
+    }
+
     const body = await req.json();
     const { id, is_active, name, address, city, state } = body;
 
@@ -132,6 +144,12 @@ export async function PATCH(req: NextRequest) {
 // DELETE /api/hospitals - Remove hospital
 export async function DELETE(req: NextRequest) {
   try {
+    try {
+      verifyAdminToken(req);
+    } catch {
+      return NextResponse.json({ success: false, error: 'Unauthorized: Admin privileges required.' }, { status: 401 });
+    }
+
     const { searchParams } = new URL(req.url);
     const id = searchParams.get('id');
 
