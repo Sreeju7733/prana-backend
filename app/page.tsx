@@ -60,32 +60,6 @@ export default function Home() {
               <span className="text-[10px] bg-slate-100 text-slate-600 px-2 py-0.5 rounded ml-2 font-mono">v1.0.0</span>
             </div>
           </div>
-          <div className="flex items-center gap-3 text-xs font-semibold">
-            <Link
-              href="/hospitals"
-              className="bg-teal-50 hover:bg-teal-100 border border-teal-200 text-teal-800 px-3.5 py-1.5 rounded-lg transition"
-            >
-              🏥 Hospital EHR
-            </Link>
-            <Link
-              href="/paramedic"
-              className="bg-red-50 hover:bg-red-100 border border-red-200 text-red-800 px-3.5 py-1.5 rounded-lg transition"
-            >
-              🚑 Paramedic App
-            </Link>
-            <Link
-              href="/admin"
-              className="bg-indigo-50 hover:bg-indigo-100 border border-indigo-200 text-indigo-800 px-3.5 py-1.5 rounded-lg transition"
-            >
-              🛡️ Superadmin
-            </Link>
-            <Link
-              href="/scan"
-              className="text-slate-600 hover:text-slate-900 border border-slate-200 bg-white px-3 py-1.5 rounded-lg hidden sm:block"
-            >
-              📷 QR Scanner
-            </Link>
-          </div>
         </div>
       </header>
 

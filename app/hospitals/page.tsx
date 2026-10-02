@@ -130,7 +130,7 @@ interface PatientSearchResponse {
 
 export default function HospitalEHRDashboard() {
   const router = useRouter();
-  const [isAuthenticated, setIsAuthenticated] = useState<boolean | null>(null);
+  const [isAuthenticated, setIsAuthenticated] = useState<boolean>(true);
 
   // Sidenav navigation section (Section order requested by user)
   const [navSection, setNavSection] = useState<
@@ -199,6 +199,16 @@ export default function HospitalEHRDashboard() {
   // Settings State
   const [passwordChange, setPasswordChange] = useState({ current: "", newPass: "", confirm: "" });
   const [passwordSuccess, setPasswordSuccess] = useState(false);
+
+  // Pagination states for all tables
+  const [lookupsPage, setLookupsPage] = useState(1);
+  const lookupsPerPage = 5;
+
+  const [paramedicsPage, setParamedicsPage] = useState(1);
+  const paramedicsPerPage = 6;
+
+  const [accessLogsPage, setAccessLogsPage] = useState(1);
+  const accessLogsPerPage = 8;
 
   // Toast Notification
   const [toast, setToast] = useState<{ message: string; type: "success" | "error" } | null>(null);
@@ -561,7 +571,7 @@ export default function HospitalEHRDashboard() {
   );
 
   return (
-    <div className="min-h-screen bg-slate-50 text-slate-900 flex font-sans selection:bg-teal-600 selection:text-white antialiased">
+    <div className="h-screen bg-slate-50 text-slate-900 flex font-sans selection:bg-teal-600 selection:text-white antialiased overflow-hidden">
       {/* Toast Notification */}
       {toast && (
         <div className={`fixed bottom-6 right-6 z-50 px-4 py-3 rounded-xl shadow-lg font-bold text-xs flex items-center gap-2 border ${
@@ -630,7 +640,7 @@ export default function HospitalEHRDashboard() {
       )}
 
       {/* ─── LEFT COLLAPSIBLE SIDENAV (EXACT SPECIFICATION) ─── */}
-      <aside className="w-64 bg-white border-r border-slate-200 flex flex-col justify-between shrink-0 shadow-sm">
+      <aside className="w-64 bg-white border-r border-slate-200 flex flex-col justify-between shrink-0 shadow-sm h-screen sticky top-0 z-30">
         <div>
           {/* Hospital Header: 🏥 [Hospital name] \n [Hospital ID] */}
           <div className="p-4 border-b border-slate-100 flex items-start gap-3">
@@ -751,34 +761,26 @@ export default function HospitalEHRDashboard() {
           </nav>
         </div>
 
-        {/* ─────────── Divider and Logout ─────────── */}
-        <div className="p-4 border-t border-slate-200 space-y-3">
+        {/* Sidebar Footer: Logout Button */}
+        <div className="p-3 border-t border-slate-100 space-y-2">
+          <div className="px-2 py-1 bg-slate-50 border border-slate-200 rounded-lg text-[11px] text-slate-500 font-mono flex items-center justify-between">
+            <span>Session:</span>
+            <span className="text-emerald-700 font-bold">Active ●</span>
+          </div>
           <button
             onClick={handleLogout}
-            className="w-full flex items-center gap-3 px-3 py-2 rounded-lg text-xs font-bold text-red-600 hover:bg-red-50 hover:text-red-700 transition"
+            className="w-full flex items-center justify-center gap-2 px-3 py-2.5 rounded-lg text-xs font-bold text-red-600 hover:text-red-700 bg-red-50 hover:bg-red-100 border border-red-200 transition shadow-2xs"
           >
-            <span className="text-base">🚪</span>
-            <span>Logout</span>
+            <span>🚪</span>
+            <span>Sign Out Facility</span>
           </button>
-
-          <div className="pt-2 border-t border-slate-100 flex items-center justify-between text-[11px] font-semibold text-slate-500">
-            <Link href="/paramedic" className="hover:text-teal-700">
-              🚑 Paramedic
-            </Link>
-            <Link href="/admin" className="hover:text-teal-700">
-              🛡️ Admin
-            </Link>
-            <Link href="/scan" className="hover:text-teal-700">
-              📷 QR
-            </Link>
-          </div>
         </div>
       </aside>
 
       {/* ─── MAIN WORKSPACE CONTENT ─── */}
-      <div className="flex-1 flex flex-col min-w-0">
+      <div className="flex-1 flex flex-col min-w-0 h-screen overflow-hidden">
         {/* Top Navbar */}
-        <header className="h-16 bg-white border-b border-slate-200 px-6 flex items-center justify-between shadow-xs">
+        <header className="h-16 bg-white border-b border-slate-200 px-6 flex items-center justify-between shadow-xs sticky top-0 z-20 shrink-0">
           <div className="flex items-center gap-3">
             <span className="font-bold text-sm text-slate-800">
               {hospitalSession.name}
@@ -789,7 +791,7 @@ export default function HospitalEHRDashboard() {
             </span>
           </div>
 
-          <div className="flex items-center gap-4 text-xs font-semibold">
+          <div className="flex items-center gap-3 text-xs font-semibold">
             {navSection === "paramedics" && (
               <button
                 onClick={() => setShowAddParamedicModal(true)}
@@ -798,12 +800,15 @@ export default function HospitalEHRDashboard() {
                 <span>➕</span> Add Paramedic
               </button>
             )}
-            <Link
-              href="/admin"
-              className="text-xs font-semibold px-3 py-1.5 rounded-lg border border-slate-200 bg-white hover:bg-slate-50 text-slate-700 transition"
+
+            <button
+              onClick={handleLogout}
+              className="bg-red-50 hover:bg-red-100 text-red-700 border border-red-200 px-3 py-1.5 rounded-lg font-bold transition flex items-center gap-1.5 shadow-2xs"
+              title="Logout from this facility"
             >
-              Superadmin Portal
-            </Link>
+              <span>🚪</span>
+              <span>Logout</span>
+            </button>
           </div>
         </header>
 
@@ -939,10 +944,22 @@ export default function HospitalEHRDashboard() {
                         </div>
                       </div>
 
-                      {/* Blood Group (Big) */}
-                      <div className="bg-red-50 border-2 border-red-200 rounded-2xl px-6 py-3 text-center min-w-[110px]">
-                        <span className="block text-[10px] uppercase font-bold text-red-600 tracking-wider">Blood Group</span>
-                        <span className="text-3xl font-black text-red-700">{patientData.patient.blood_group}</span>
+                      {/* Action & Blood Group */}
+                      <div className="flex items-center gap-3">
+                        <a
+                          href={`/hospitals/records/${encodeURIComponent(patientData.patient.prana_id)}`}
+                          target="_blank"
+                          rel="noopener noreferrer"
+                          className="bg-teal-50 hover:bg-teal-100 text-teal-800 border border-teal-200 px-3.5 py-2.5 rounded-xl text-xs font-bold transition flex items-center gap-1.5 shadow-2xs"
+                        >
+                          <span>Open in New Page ↗</span>
+                        </a>
+
+                        {/* Blood Group (Big) */}
+                        <div className="bg-red-50 border-2 border-red-200 rounded-2xl px-6 py-3 text-center min-w-[110px]">
+                          <span className="block text-[10px] uppercase font-bold text-red-600 tracking-wider">Blood Group</span>
+                          <span className="text-3xl font-black text-red-700">{patientData.patient.blood_group}</span>
+                        </div>
                       </div>
                     </div>
 
@@ -1170,7 +1187,7 @@ export default function HospitalEHRDashboard() {
                       </div>
                     )}
 
-                    {/* ─── TAB 6: REPORTS & AI SUMMARY ─── */}
+                    {/* ─── TAB 6: CLINICAL AI SUMMARY ─── */}
                     {recordTab === "reports" && (
                       <div className="pt-5 space-y-4">
                         <div className="p-4 bg-teal-50/50 border border-teal-200 rounded-xl space-y-2">
@@ -1183,23 +1200,14 @@ export default function HospitalEHRDashboard() {
                           </p>
                         </div>
 
-                        <div className="space-y-2">
-                          <h4 className="font-bold text-xs uppercase tracking-wider text-slate-600">Uploaded Clinical Documents</h4>
-                          <div className="p-3.5 bg-slate-50 border border-slate-200 rounded-xl flex items-center justify-between text-xs">
-                            <div className="flex items-center gap-3">
-                              <span className="text-lg">📄</span>
-                              <div>
-                                <span className="font-bold text-slate-800">Comprehensive_Health_Report_2024.pdf</span>
-                                <span className="text-[11px] text-slate-500 block">Verified Digital Medical Record • 2.4 MB</span>
-                              </div>
-                            </div>
-                            <button
-                              onClick={() => showToast("Opening verified clinical document...")}
-                              className="text-xs font-bold text-teal-700 hover:text-teal-800 underline"
-                            >
-                              View Report →
-                            </button>
+                        <div className="p-4 bg-slate-50 border border-slate-200 rounded-xl text-xs text-slate-600 space-y-1.5">
+                          <div className="font-bold text-slate-800 text-xs flex items-center gap-1.5">
+                            <span>🔒</span>
+                            <span>Direct Encrypted EHR Synchronized</span>
                           </div>
+                          <p className="text-[11px] text-slate-500">
+                            Health records and telemetry are streamed and decrypted live from the National Health Network directly to this clinical workstation. External file attachments and document uploads are restricted for cybersecurity and privacy compliance.
+                          </p>
                         </div>
                       </div>
                     )}
@@ -1256,20 +1264,33 @@ export default function HospitalEHRDashboard() {
                     )}
 
                     {/* ─── TAB 8: EMERGENCY CONTACTS (WITH CALL BUTTONS) ─── */}
+                    {/* ─── TAB 8: EMERGENCY CONTACTS (WITH REAL NUMBERS & CALL BUTTONS) ─── */}
                     {recordTab === "emergency_contacts" && (
                       <div className="pt-5 space-y-3">
-                        <h4 className="font-bold text-xs uppercase tracking-wider text-slate-600">Next-of-Kin Emergency Contacts</h4>
+                        <div className="flex items-center justify-between">
+                          <h4 className="font-bold text-xs uppercase tracking-wider text-slate-600">Next-of-Kin Emergency Contacts</h4>
+                          <span className="text-[11px] text-emerald-700 font-bold bg-emerald-50 border border-emerald-200 px-2 py-0.5 rounded">
+                            Verified Direct Phone Numbers
+                          </span>
+                        </div>
                         <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
                           {patientData.emergency_contacts.map((contact, i) => (
                             <div key={i} className="p-4 bg-slate-50 border border-slate-200 rounded-xl flex items-center justify-between text-xs">
                               <div>
-                                <div className="font-bold text-slate-900 text-sm">{contact.name}</div>
+                                <div className="font-bold text-slate-900 text-sm flex items-center gap-2">
+                                  <span>{contact.name}</span>
+                                  {contact.is_primary && (
+                                    <span className="text-[10px] bg-teal-100 text-teal-800 px-1.5 py-0.2 rounded font-bold">
+                                      Primary
+                                    </span>
+                                  )}
+                                </div>
                                 <div className="text-slate-500">Relationship: <strong className="text-slate-700">{contact.relationship}</strong></div>
-                                <div className="font-mono text-slate-700 mt-1">{contact.phone}</div>
+                                <div className="font-mono text-slate-900 font-bold mt-1 text-sm">{contact.phone}</div>
                               </div>
                               <a
-                                href={`tel:${contact.phone}`}
-                                className="bg-emerald-600 hover:bg-emerald-700 text-white font-bold text-xs px-3.5 py-2 rounded-lg transition flex items-center gap-1.5 shadow-xs"
+                                href={`tel:${contact.phone.replace(/\s+/g, '')}`}
+                                className="bg-emerald-600 hover:bg-emerald-700 text-white font-bold text-xs px-3.5 py-2 rounded-lg transition flex items-center gap-1.5 shadow-xs shrink-0"
                               >
                                 <span>📞</span>
                                 <span>Call Contact</span>
@@ -1324,7 +1345,7 @@ export default function HospitalEHRDashboard() {
                     </tr>
                   </thead>
                   <tbody className="divide-y divide-slate-100">
-                    {todayLookups.map((p, idx) => (
+                    {todayLookups.slice((lookupsPage - 1) * lookupsPerPage, lookupsPage * lookupsPerPage).map((p, idx) => (
                       <tr key={idx} className="hover:bg-slate-50 transition">
                         <td className="py-3 px-3 font-mono font-bold text-teal-700">{p.pid}</td>
                         <td className="py-3 px-3 font-bold text-slate-800">{p.name}</td>
@@ -1337,17 +1358,49 @@ export default function HospitalEHRDashboard() {
                           </span>
                         </td>
                         <td className="py-3 px-3 text-right">
-                          <button
-                            onClick={() => { setSearchPid(p.pid); performSearch(p.pid); }}
-                            className="text-xs font-bold text-teal-700 hover:text-teal-800 underline"
-                          >
-                            Open Record →
-                          </button>
+                          <div className="flex items-center justify-end gap-2">
+                            <a
+                              href={`/hospitals/records/${encodeURIComponent(p.pid)}`}
+                              target="_blank"
+                              rel="noopener noreferrer"
+                              className="bg-teal-50 hover:bg-teal-100 text-teal-800 border border-teal-200 px-3 py-1 rounded-lg text-xs font-bold transition flex items-center gap-1 shadow-2xs"
+                            >
+                              <span>Open Record ↗</span>
+                            </a>
+                          </div>
                         </td>
                       </tr>
                     ))}
                   </tbody>
                 </table>
+
+                {/* Table Pagination Bar */}
+                <div className="p-3 bg-slate-50 border-t border-slate-200 flex flex-wrap items-center justify-between gap-3 text-xs">
+                  <div className="text-slate-500 font-medium">
+                    Showing <strong className="text-slate-800">{todayLookups.length === 0 ? 0 : (lookupsPage - 1) * lookupsPerPage + 1}</strong> to{" "}
+                    <strong className="text-slate-800">{Math.min(lookupsPage * lookupsPerPage, todayLookups.length)}</strong> of{" "}
+                    <strong className="text-slate-800">{todayLookups.length}</strong> patients
+                  </div>
+                  <div className="flex items-center gap-1.5">
+                    <button
+                      onClick={() => setLookupsPage(p => Math.max(1, p - 1))}
+                      disabled={lookupsPage <= 1}
+                      className="px-2.5 py-1 rounded bg-white border border-slate-300 font-bold text-slate-700 hover:bg-slate-100 disabled:opacity-40 transition"
+                    >
+                      ← Previous
+                    </button>
+                    <span className="px-2 py-1 font-mono font-bold text-slate-600">
+                      Page {lookupsPage} / {Math.max(1, Math.ceil(todayLookups.length / lookupsPerPage))}
+                    </span>
+                    <button
+                      onClick={() => setLookupsPage(p => Math.min(Math.ceil(todayLookups.length / lookupsPerPage), p + 1))}
+                      disabled={lookupsPage >= Math.ceil(todayLookups.length / lookupsPerPage)}
+                      className="px-2.5 py-1 rounded bg-white border border-slate-300 font-bold text-slate-700 hover:bg-slate-100 disabled:opacity-40 transition"
+                    >
+                      Next →
+                    </button>
+                  </div>
+                </div>
               </div>
             </div>
           )}
@@ -1428,16 +1481,14 @@ export default function HospitalEHRDashboard() {
                       </div>
 
                       <div className="flex justify-end gap-2 pt-1">
-                        <button
-                          onClick={() => {
-                            setSearchPid(inc.prana_id);
-                            performSearch(inc.prana_id);
-                            setNavSection("patient_lookup");
-                          }}
-                          className="bg-teal-600 hover:bg-teal-700 text-white font-bold text-xs px-3.5 py-1.5 rounded-lg transition shadow-xs"
+                        <a
+                          href={`/hospitals/records/${encodeURIComponent(inc.prana_id)}`}
+                          target="_blank"
+                          rel="noopener noreferrer"
+                          className="bg-teal-600 hover:bg-teal-700 text-white font-bold text-xs px-3.5 py-1.5 rounded-lg transition shadow-xs flex items-center gap-1"
                         >
-                          Prepare Resuscitation & Open Record →
-                        </button>
+                          <span>Prepare Resuscitation & Open Record ↗</span>
+                        </a>
                       </div>
                     </div>
                   ))}
@@ -1598,7 +1649,7 @@ export default function HospitalEHRDashboard() {
                     </tr>
                   </thead>
                   <tbody className="divide-y divide-slate-100">
-                    {hospitalParamedics.map(p => (
+                    {hospitalParamedics.slice((paramedicsPage - 1) * paramedicsPerPage, paramedicsPage * paramedicsPerPage).map(p => (
                       <tr key={p.id} className="hover:bg-slate-50 transition">
                         <td className="py-3 px-3 font-mono text-[11px] text-teal-700 font-bold">{p.responder_code}</td>
                         <td className="py-3 px-3 font-bold text-slate-900">{p.name}</td>
@@ -1648,6 +1699,34 @@ export default function HospitalEHRDashboard() {
                     ))}
                   </tbody>
                 </table>
+
+                {/* Table Pagination Bar */}
+                <div className="p-3 bg-slate-50 border-t border-slate-200 flex flex-wrap items-center justify-between gap-3 text-xs">
+                  <div className="text-slate-500 font-medium">
+                    Showing <strong className="text-slate-800">{hospitalParamedics.length === 0 ? 0 : (paramedicsPage - 1) * paramedicsPerPage + 1}</strong> to{" "}
+                    <strong className="text-slate-800">{Math.min(paramedicsPage * paramedicsPerPage, hospitalParamedics.length)}</strong> of{" "}
+                    <strong className="text-slate-800">{hospitalParamedics.length}</strong> crew members
+                  </div>
+                  <div className="flex items-center gap-1.5">
+                    <button
+                      onClick={() => setParamedicsPage(p => Math.max(1, p - 1))}
+                      disabled={paramedicsPage <= 1}
+                      className="px-2.5 py-1 rounded bg-white border border-slate-300 font-bold text-slate-700 hover:bg-slate-100 disabled:opacity-40 transition"
+                    >
+                      ← Previous
+                    </button>
+                    <span className="px-2 py-1 font-mono font-bold text-slate-600">
+                      Page {paramedicsPage} / {Math.max(1, Math.ceil(hospitalParamedics.length / paramedicsPerPage))}
+                    </span>
+                    <button
+                      onClick={() => setParamedicsPage(p => Math.min(Math.ceil(hospitalParamedics.length / paramedicsPerPage), p + 1))}
+                      disabled={paramedicsPage >= Math.ceil(hospitalParamedics.length / paramedicsPerPage)}
+                      className="px-2.5 py-1 rounded bg-white border border-slate-300 font-bold text-slate-700 hover:bg-slate-100 disabled:opacity-40 transition"
+                    >
+                      Next →
+                    </button>
+                  </div>
+                </div>
               </div>
             </div>
           )}
@@ -1774,7 +1853,7 @@ export default function HospitalEHRDashboard() {
                   </thead>
                   <tbody className="divide-y divide-slate-100">
                     {accessLogs.length > 0 ? (
-                      accessLogs.map((log) => (
+                      accessLogs.slice((accessLogsPage - 1) * accessLogsPerPage, accessLogsPage * accessLogsPerPage).map((log) => (
                         <tr key={log.id} className="hover:bg-slate-50 transition">
                           <td className="py-3 px-3 font-mono font-bold text-teal-800">{log.prana_id}</td>
                           <td className="py-3 px-3 text-slate-700 font-semibold">{log.scanner_type}</td>
@@ -1793,6 +1872,34 @@ export default function HospitalEHRDashboard() {
                     )}
                   </tbody>
                 </table>
+
+                {/* Table Pagination Bar */}
+                <div className="p-3 bg-slate-50 border-t border-slate-200 flex flex-wrap items-center justify-between gap-3 text-xs">
+                  <div className="text-slate-500 font-medium">
+                    Showing <strong className="text-slate-800">{accessLogs.length === 0 ? 0 : (accessLogsPage - 1) * accessLogsPerPage + 1}</strong> to{" "}
+                    <strong className="text-slate-800">{Math.min(accessLogsPage * accessLogsPerPage, accessLogs.length)}</strong> of{" "}
+                    <strong className="text-slate-800">{accessLogs.length}</strong> log entries
+                  </div>
+                  <div className="flex items-center gap-1.5">
+                    <button
+                      onClick={() => setAccessLogsPage(p => Math.max(1, p - 1))}
+                      disabled={accessLogsPage <= 1}
+                      className="px-2.5 py-1 rounded bg-white border border-slate-300 font-bold text-slate-700 hover:bg-slate-100 disabled:opacity-40 transition"
+                    >
+                      ← Previous
+                    </button>
+                    <span className="px-2 py-1 font-mono font-bold text-slate-600">
+                      Page {accessLogsPage} / {Math.max(1, Math.ceil(accessLogs.length / accessLogsPerPage))}
+                    </span>
+                    <button
+                      onClick={() => setAccessLogsPage(p => Math.min(Math.ceil(accessLogs.length / accessLogsPerPage), p + 1))}
+                      disabled={accessLogsPage >= Math.ceil(accessLogs.length / accessLogsPerPage)}
+                      className="px-2.5 py-1 rounded bg-white border border-slate-300 font-bold text-slate-700 hover:bg-slate-100 disabled:opacity-40 transition"
+                    >
+                      Next →
+                    </button>
+                  </div>
+                </div>
               </div>
             </div>
           )}

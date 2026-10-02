@@ -214,11 +214,41 @@ export default function HospitalLoginPage() {
           <form onSubmit={handleLogin} className="space-y-4 text-xs">
             {/* Searchable Hospital Selector */}
             <div className="relative" ref={dropdownRef}>
-              <label className="block font-bold text-slate-700 mb-1">
-                Select Accredited Hospital Facility
-              </label>
+              <div className="flex items-center justify-between mb-1">
+                <label className="font-bold text-slate-700">
+                  Select Accredited Hospital Facility
+                </label>
+                <span className="text-[10px] text-teal-700 font-mono">
+                  {filteredHospitals.length} facilities
+                </span>
+              </div>
 
-              {/* Trigger Button */}
+              {/* Quick Search Input */}
+              <div className="relative mb-2">
+                <span className="absolute left-3 top-2.5 text-slate-400 text-xs">🔍</span>
+                <input
+                  type="text"
+                  value={searchTerm}
+                  onChange={(e) => {
+                    setSearchTerm(e.target.value);
+                    if (!isDropdownOpen) setIsDropdownOpen(true);
+                  }}
+                  onFocus={() => setIsDropdownOpen(true)}
+                  placeholder="Search hospital by name, ID (e.g. HOSP-AIIMS), or city..."
+                  className="w-full bg-slate-50 hover:bg-white focus:bg-white border border-slate-300 rounded-lg pl-8 pr-3 py-2 text-xs text-slate-900 outline-none focus:border-teal-600 focus:ring-1 focus:ring-teal-600 transition shadow-2xs"
+                />
+                {searchTerm && (
+                  <button
+                    type="button"
+                    onClick={() => setSearchTerm("")}
+                    className="absolute right-2.5 top-2 text-slate-400 hover:text-slate-600 text-xs"
+                  >
+                    ✕
+                  </button>
+                )}
+              </div>
+
+              {/* Selected Hospital Display Button */}
               <button
                 type="button"
                 onClick={() => setIsDropdownOpen(!isDropdownOpen)}
@@ -238,21 +268,6 @@ export default function HospitalLoginPage() {
               {/* Searchable Dropdown Menu */}
               {isDropdownOpen && (
                 <div className="absolute top-full left-0 right-0 mt-1.5 bg-white border border-slate-200 rounded-xl shadow-lg z-50 overflow-hidden animate-fade-in">
-                  {/* Search Bar Input */}
-                  <div className="p-2 border-b border-slate-100 bg-slate-50">
-                    <div className="relative">
-                      <span className="absolute left-2.5 top-2 text-slate-400 text-xs">🔍</span>
-                      <input
-                        type="text"
-                        value={searchTerm}
-                        onChange={(e) => setSearchTerm(e.target.value)}
-                        placeholder="Search hospital by name, ID, or city..."
-                        autoFocus
-                        className="w-full bg-white border border-slate-300 rounded-lg pl-8 pr-3 py-1.5 text-xs text-slate-900 outline-none focus:border-teal-600 focus:ring-1 focus:ring-teal-600"
-                      />
-                    </div>
-                  </div>
-
                   {/* Filtered Hospitals List */}
                   <div className="max-h-56 overflow-y-auto divide-y divide-slate-100">
                     {filteredHospitals.length > 0 ? (
