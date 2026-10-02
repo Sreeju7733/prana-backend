@@ -45,104 +45,110 @@ export default function Home() {
   ];
 
   return (
-    <div className="min-h-screen bg-zinc-950 text-zinc-100 font-sans selection:bg-emerald-500 selection:text-black">
+    <div className="min-h-screen bg-slate-50 text-slate-900 font-sans selection:bg-teal-600 selection:text-white antialiased">
       {/* Header */}
-      <header className="border-b border-zinc-800 bg-zinc-900/50 backdrop-blur sticky top-0 z-50">
+      <header className="border-b border-slate-200 bg-white sticky top-0 z-50 shadow-xs">
         <div className="max-w-6xl mx-auto px-6 h-16 flex items-center justify-between">
           <div className="flex items-center gap-3">
-            <div className="w-3 h-3 rounded-full bg-emerald-500 animate-pulse" />
-            <span className="font-bold text-lg tracking-tight bg-gradient-to-r from-emerald-400 to-cyan-400 bg-clip-text text-transparent">
-              Prana Backend API
-            </span>
-            <span className="text-xs bg-zinc-800 text-zinc-400 px-2 py-0.5 rounded-full font-mono">v1.0.0</span>
+            <div className="w-8 h-8 rounded-lg bg-teal-600 flex items-center justify-center text-white font-bold text-base shadow-xs">
+              🩺
+            </div>
+            <div>
+              <span className="font-bold text-base tracking-tight text-slate-900">
+                PRANA Medical Network
+              </span>
+              <span className="text-[10px] bg-slate-100 text-slate-600 px-2 py-0.5 rounded ml-2 font-mono">v1.0.0</span>
+            </div>
           </div>
-          <div className="flex items-center gap-3 text-sm">
+          <div className="flex items-center gap-3 text-xs font-semibold">
             <Link
               href="/hospitals"
-              className="bg-teal-950 hover:bg-teal-900 border border-teal-700/60 text-teal-300 font-semibold px-3 py-1.5 rounded-lg transition-colors flex items-center gap-1.5"
+              className="bg-teal-50 hover:bg-teal-100 border border-teal-200 text-teal-800 px-3.5 py-1.5 rounded-lg transition"
             >
-              <span>🏥</span> Hospitals
+              🏥 Hospital EHR
             </Link>
             <Link
               href="/paramedic"
-              className="bg-red-950 hover:bg-red-900 border border-red-700/60 text-red-300 font-semibold px-3 py-1.5 rounded-lg transition-colors flex items-center gap-1.5"
+              className="bg-red-50 hover:bg-red-100 border border-red-200 text-red-800 px-3.5 py-1.5 rounded-lg transition"
             >
-              <span>🚑</span> Paramedic App
+              🚑 Paramedic App
             </Link>
             <Link
               href="/admin"
-              className="bg-purple-950 hover:bg-purple-900 border border-purple-700/60 text-purple-300 font-semibold px-3 py-1.5 rounded-lg transition-colors flex items-center gap-1.5"
+              className="bg-indigo-50 hover:bg-indigo-100 border border-indigo-200 text-indigo-800 px-3.5 py-1.5 rounded-lg transition"
             >
-              <span>🛡️</span> Superadmin
+              🛡️ Superadmin
             </Link>
             <Link
               href="/scan"
-              className="text-zinc-400 hover:text-emerald-400 transition-colors hidden sm:flex items-center gap-1.5"
+              className="text-slate-600 hover:text-slate-900 border border-slate-200 bg-white px-3 py-1.5 rounded-lg hidden sm:block"
             >
-              <span>📷</span> Scanner
+              📷 QR Scanner
             </Link>
-            <a
-              href="/api/health/supabase"
-              target="_blank"
-              className="text-zinc-400 hover:text-emerald-400 transition-colors hidden sm:flex items-center gap-1.5"
-            >
-              <span className="w-2 h-2 rounded-full bg-emerald-500"></span>
-              DB Status
-            </a>
           </div>
         </div>
       </header>
 
       {/* Hero Section */}
-      <main className="max-w-6xl mx-auto px-6 py-12">
-        <div className="mb-12 text-center sm:text-left flex flex-col sm:flex-row items-center justify-between gap-6 border-b border-zinc-800/80 pb-10">
-          <div>
-            <h1 className="text-4xl sm:text-5xl font-extrabold tracking-tight text-white mb-3">
-              Emergency Health & <span className="text-emerald-400">Prana Card</span> API
+      <main className="max-w-6xl mx-auto px-6 py-10 space-y-10">
+        <div className="bg-white border border-slate-200 rounded-2xl p-8 shadow-xs flex flex-col md:flex-row items-start md:items-center justify-between gap-6">
+          <div className="space-y-2 max-w-2xl">
+            <div className="inline-block px-2.5 py-0.5 rounded-full text-xs font-bold bg-teal-50 text-teal-800 border border-teal-200">
+              National Health Interoperability
+            </div>
+            <h1 className="text-3xl font-extrabold text-slate-900 tracking-tight">
+              Hospital Clinical EHR & Universal Emergency Portal
             </h1>
-            <p className="text-zinc-400 text-lg max-w-2xl">
-              High-performance Next.js backend powering secure medical records, emergency NFC/QR smart cards, AI prescription scanners, and instant life-saving briefings.
+            <p className="text-slate-600 text-sm leading-relaxed">
+              Standardized electronic medical records, emergency NFC/QR cards, and multi-tier access guards connecting verified hospitals, field paramedics, and patients.
             </p>
           </div>
-          <div className="bg-zinc-900 border border-zinc-800 rounded-2xl p-5 min-w-[260px] shadow-xl">
-            <div className="text-xs font-mono text-zinc-400 uppercase tracking-wider mb-2">Server Status</div>
-            <div className="flex items-center gap-2 text-emerald-400 font-semibold mb-1">
-              <span className="w-2.5 h-2.5 rounded-full bg-emerald-400"></span>
-              Operational & Ready
-            </div>
-            <div className="text-xs text-zinc-500 font-mono">Environment: Development</div>
+
+          <div className="flex flex-col sm:flex-row gap-3 w-full md:w-auto">
+            <Link
+              href="/hospitals"
+              className="bg-teal-600 hover:bg-teal-700 text-white font-bold text-xs px-5 py-3 rounded-xl transition text-center shadow-xs"
+            >
+              Launch Hospital EHR →
+            </Link>
+            <Link
+              href="/admin"
+              className="bg-indigo-700 hover:bg-indigo-800 text-white font-bold text-xs px-5 py-3 rounded-xl transition text-center shadow-xs"
+            >
+              Superadmin Console →
+            </Link>
           </div>
         </div>
 
         {/* API Categories Grid */}
-        <div className="mb-8">
-          <h2 className="text-xl font-bold mb-6 text-zinc-200 flex items-center gap-2">
-            <span>⚡</span> Available Endpoint Modules
+        <div className="space-y-4">
+          <h2 className="text-base font-bold text-slate-900">
+            Platform Services & Microservices
           </h2>
 
-          <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
+          <div className="grid grid-cols-1 md:grid-cols-2 gap-5">
             {apiCategories.map((category, idx) => (
               <div 
                 key={idx} 
-                className="bg-zinc-900/60 border border-zinc-800 rounded-xl p-6 hover:border-zinc-700 transition-all flex flex-col justify-between"
+                className="bg-white border border-slate-200 rounded-xl p-5 shadow-xs flex flex-col justify-between"
               >
                 <div>
-                  <h3 className="text-lg font-semibold text-emerald-400 mb-4">{category.title}</h3>
-                  <div className="space-y-3">
+                  <h3 className="text-sm font-bold text-slate-900 mb-3">{category.title}</h3>
+                  <div className="space-y-2">
                     {category.endpoints.map((ep, eIdx) => (
-                      <div key={eIdx} className="group flex items-start justify-between gap-4 py-2 border-b border-zinc-800/50 last:border-0">
-                        <div className="space-y-0.5">
+                      <div key={eIdx} className="flex items-start justify-between gap-3 py-1.5 border-b border-slate-100 last:border-0 text-xs">
+                        <div>
                           <div className="flex items-center gap-2">
-                            <span className={`text-[10px] font-mono px-1.5 py-0.5 rounded font-bold ${
-                              ep.method === 'GET' ? 'bg-blue-950 text-blue-400 border border-blue-800/50' :
-                              ep.method === 'POST' ? 'bg-emerald-950 text-emerald-400 border border-emerald-800/50' :
-                              'bg-amber-950 text-amber-400 border border-amber-800/50'
+                            <span className={`text-[9px] font-mono px-1.5 py-0.5 rounded font-bold ${
+                              ep.method === 'GET' ? 'bg-blue-50 text-blue-800 border border-blue-200' :
+                              ep.method === 'POST' ? 'bg-emerald-50 text-emerald-800 border border-emerald-200' :
+                              'bg-amber-50 text-amber-800 border border-amber-200'
                             }`}>
                               {ep.method}
                             </span>
-                            <code className="text-sm font-mono text-zinc-200 group-hover:text-white">{ep.path}</code>
+                            <code className="font-mono text-slate-800">{ep.path}</code>
                           </div>
-                          <p className="text-xs text-zinc-400">{ep.desc}</p>
+                          <p className="text-[11px] text-slate-500 mt-0.5">{ep.desc}</p>
                         </div>
                       </div>
                     ))}
@@ -152,34 +158,11 @@ export default function Home() {
             ))}
           </div>
         </div>
-
-        {/* Quick Test Links & Footer */}
-        <div className="mt-12 p-6 bg-zinc-900/40 border border-zinc-800 rounded-xl flex flex-col sm:flex-row items-center justify-between gap-4 text-sm text-zinc-400">
-          <div>
-            Want to test an endpoint right now? Try checking the Supabase connection health.
-          </div>
-          <div className="flex items-center gap-3">
-            <a
-              href="/api/health/supabase"
-              target="_blank"
-              className="bg-zinc-800 hover:bg-zinc-700 text-zinc-200 px-4 py-2 rounded-lg font-medium transition-colors"
-            >
-              GET /api/health/supabase
-            </a>
-            <a
-              href="/api/dashboard"
-              target="_blank"
-              className="bg-emerald-600 hover:bg-emerald-500 text-zinc-950 px-4 py-2 rounded-lg font-medium transition-colors"
-            >
-              GET /api/dashboard
-            </a>
-          </div>
-        </div>
       </main>
 
       {/* Footer */}
-      <footer className="border-t border-zinc-900 mt-20 py-8 text-center text-xs text-zinc-600">
-        Prana Emergency Backend &bull; Secure Medical Intelligence Platform
+      <footer className="border-t border-slate-200 mt-16 py-6 text-center text-xs text-slate-500">
+        PRANA Universal Emergency Medical Card Architecture • Certified HL7 & FHIR Interoperable
       </footer>
     </div>
   );
