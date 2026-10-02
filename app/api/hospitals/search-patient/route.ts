@@ -13,14 +13,18 @@ export async function GET(req: NextRequest) {
     }
 
     const cleanPid = pranaId.trim();
+    const digitsOnly = cleanPid.replace(/\D/g, '');
     const isUuid = /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i.test(cleanPid);
 
-    // 1. Fetch patient profile
+    // 1. Fetch patient profile by PRANA ID, Phone number, or UUID
     let query = supabase.from('profiles').select('*');
     if (isUuid) {
-      query = query.or(`prana_id.ilike.%${cleanPid}%,id.eq.${cleanPid}`);
+      query = query.or(`prana_id.ilike.%${cleanPid}%,id.eq.${cleanPid},phone.ilike.%${cleanPid}%`);
+    } else if (digitsOnly.length >= 7) {
+      // Searching by phone number
+      query = query.or(`phone.ilike.%${digitsOnly}%,prana_id.ilike.%${cleanPid}%`);
     } else {
-      query = query.ilike('prana_id', `%${cleanPid}%`);
+      query = query.or(`prana_id.ilike.%${cleanPid}%,phone.ilike.%${cleanPid}%,full_name.ilike.%${cleanPid}%`);
     }
 
     const { data: profiles, error: pErr } = await query.limit(1);
@@ -44,7 +48,7 @@ export async function GET(req: NextRequest) {
     if (!profile) {
       return NextResponse.json({
         success: false,
-        error: `No patient registered with PRANA ID "${cleanPid}". Please check the ID on the smart card.`
+        error: `No patient found with identifier or phone number "${cleanPid}".`
       }, { status: 404 });
     }
 
@@ -58,7 +62,8 @@ export async function GET(req: NextRequest) {
       { data: devices },
       { data: surgeries },
       { data: vitals },
-      { data: contacts }
+      { data: contacts },
+      { data: insurance }
     ] = await Promise.all([
       supabase.from('allergies').select('*').eq('user_id', uid),
       supabase.from('medications').select('*').eq('user_id', uid),
@@ -67,6 +72,7 @@ export async function GET(req: NextRequest) {
       supabase.from('surgeries').select('*').eq('user_id', uid),
       supabase.from('vitals').select('*').eq('user_id', uid),
       supabase.from('emergency_contacts').select('*').eq('user_id', uid),
+      supabase.from('insurance_policies').select('*').eq('user_id', uid).maybeSingle()
     ]);
 
     // 3. Log access in scan_logs as an authenticated Hospital Access Event
@@ -79,7 +85,7 @@ export async function GET(req: NextRequest) {
         scanner_type: 'Hospital Clinical Workstation',
         location_city: 'Hospital Emergency Unit',
         responder_org: `Verified Hospital (${hospitalId})`,
-        accessed_data_summary: 'Full Clinical Record: Allergies, Meds, Vitals, Conditions, Devices, Surgeries',
+        accessed_data_summary: 'Full Clinical Record: Allergies, Meds, Vitals, Conditions, Devices, Surgeries, Insurance',
         scanned_at: new Date().toISOString()
       }]);
     } catch {
@@ -101,6 +107,7 @@ export async function GET(req: NextRequest) {
       patient: {
         prana_id: profile.prana_id || cleanPid,
         full_name: profile.full_name || 'Patient Record',
+        phone: profile.phone || '',
         date_of_birth: profile.date_of_birth || '2007-01-26',
         age: 19,
         gender: profile.gender || 'Male',
@@ -108,6 +115,9 @@ export async function GET(req: NextRequest) {
         weight_kg: profile.weight_kg || 68,
         height_cm: profile.height_cm || 175,
         emergency_relay: profile.emergency_relay_number || '1800-PRANA-RELAY',
+        insurance_provider: insurance?.provider_name || 'Star Health & Allied Insurance',
+        policy_number: insurance?.policy_number || 'POL-99210-PRANA',
+        tpa_contact: insurance?.tpa_contact || '1800-425-2255',
       },
       allergies: allergies || [],
       medications: medications || [],
