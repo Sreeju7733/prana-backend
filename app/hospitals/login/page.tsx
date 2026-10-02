@@ -136,7 +136,7 @@ export default function HospitalLoginPage() {
                 type="text"
                 value={doctorName}
                 onChange={(e) => setDoctorName(e.target.value)}
-                placeholder="Dr. Arvind Swaminathan, MD"
+                placeholder="e.g. Attending Duty Physician"
                 className="w-full bg-white border border-slate-300 rounded-lg px-3 py-2 text-slate-900 outline-none focus:ring-1 focus:ring-teal-600"
                 required
               />
@@ -201,7 +201,7 @@ export default function HospitalLoginPage() {
           <div className="p-3 bg-slate-50 border border-slate-200 rounded-lg text-[11px] text-slate-600 space-y-1">
             <span className="font-bold text-slate-800 block">Demonstration Credentials:</span>
             <div>Hospital: <span className="font-mono text-teal-800">AIIMS New Delhi (HOSP-AIIMS-01)</span></div>
-            <div>Doctor: <span className="font-semibold text-slate-700">Dr. Arvind Swaminathan, MD (DOC-9081)</span></div>
+            <div>Doctor / Staff: <span className="font-semibold text-slate-700">Attending Duty Physician (PIN: 1234)</span></div>
           </div>
         </div>
       </div>

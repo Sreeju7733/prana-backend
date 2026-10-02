@@ -66,7 +66,7 @@ interface SystemStats {
 
 export default function ProfessionalSuperAdminDashboard() {
   // Sidenav selection
-  const [activeNav, setActiveNav] = useState<"overview" | "hospitals" | "responders" | "patients" | "audit">("overview");
+  const [activeNav, setActiveNav] = useState<"overview" | "hospitals" | "responders" | "patients" | "admissions" | "audit">("overview");
 
   // Filter query
   const [searchFilter, setSearchFilter] = useState("");
