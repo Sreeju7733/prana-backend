@@ -58,10 +58,16 @@ export default function Home() {
           </div>
           <div className="flex items-center gap-3 text-sm">
             <Link
-              href="/hospital"
-              className="bg-cyan-950 hover:bg-cyan-900 border border-cyan-700/60 text-cyan-300 font-semibold px-3 py-1.5 rounded-lg transition-colors flex items-center gap-1.5"
+              href="/hospitals"
+              className="bg-teal-950 hover:bg-teal-900 border border-teal-700/60 text-teal-300 font-semibold px-3 py-1.5 rounded-lg transition-colors flex items-center gap-1.5"
             >
-              <span>🚑</span> Hospital Paramedic
+              <span>🏥</span> Hospitals
+            </Link>
+            <Link
+              href="/paramedic"
+              className="bg-red-950 hover:bg-red-900 border border-red-700/60 text-red-300 font-semibold px-3 py-1.5 rounded-lg transition-colors flex items-center gap-1.5"
+            >
+              <span>🚑</span> Paramedic App
             </Link>
             <Link
               href="/admin"
@@ -71,7 +77,7 @@ export default function Home() {
             </Link>
             <Link
               href="/scan"
-              className="text-zinc-400 hover:text-emerald-400 transition-colors flex items-center gap-1.5"
+              className="text-zinc-400 hover:text-emerald-400 transition-colors hidden sm:flex items-center gap-1.5"
             >
               <span>📷</span> Scanner
             </Link>
