@@ -359,7 +359,7 @@ export default function ProfessionalSuperAdminDashboard() {
             System Root Operator: <strong className="text-slate-800 font-semibold block">National Health Authority</strong>
           </div>
           <div className="pt-2 border-t border-slate-100 flex items-center justify-between text-[11px] font-semibold">
-            <Link href="/hospitals" className="text-slate-600 hover:text-indigo-700">
+            <Link href="/hospitals/login" className="text-slate-600 hover:text-indigo-700">
               🏥 Hospital EHR
             </Link>
             <Link href="/paramedic" className="text-slate-600 hover:text-indigo-700">

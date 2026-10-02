@@ -158,7 +158,7 @@ export default function ParamedicAppWhite() {
           <Link href="/scan" className="text-[11px] bg-slate-100 hover:bg-slate-200 border border-slate-200 px-2.5 py-1 rounded-md font-semibold text-slate-700">
             📷 QR
           </Link>
-          <Link href="/hospitals" className="text-[11px] bg-teal-50 text-teal-800 border border-teal-200 px-2.5 py-1 rounded-md font-semibold">
+          <Link href="/hospitals/login" className="text-[11px] bg-teal-50 text-teal-800 border border-teal-200 px-2.5 py-1 rounded-md font-semibold">
             🏥 Hospital
           </Link>
         </div>

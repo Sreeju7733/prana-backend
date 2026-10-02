@@ -62,7 +62,7 @@ export default function Home() {
           </div>
           <div className="flex items-center gap-3 text-xs font-semibold">
             <Link
-              href="/hospitals"
+              href="/hospitals/login"
               className="bg-teal-50 hover:bg-teal-100 border border-teal-200 text-teal-800 px-3.5 py-1.5 rounded-lg transition"
             >
               🏥 Hospital EHR
@@ -106,7 +106,7 @@ export default function Home() {
 
           <div className="flex flex-col sm:flex-row gap-3 w-full md:w-auto">
             <Link
-              href="/hospitals"
+              href="/hospitals/login"
               className="bg-teal-600 hover:bg-teal-700 text-white font-bold text-xs px-5 py-3 rounded-xl transition text-center shadow-xs"
             >
               Launch Hospital EHR →
