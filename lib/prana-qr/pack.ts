@@ -170,7 +170,7 @@ export function pack(data: PatientData): PackedData {
     const note = data.notes[i];
     const idx = getNoteIndex(note);
 
-    if (idx >= 0) {
+    if (idx !== null && idx >= 0) {
       if (!addByte(idx)) return overflow();
     } else {
       if (!addByte(255)) return overflow();
