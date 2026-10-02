@@ -82,9 +82,12 @@ interface PatientSearchResponse {
   }>;
 }
 
-export default function HospitalEHRDashboard() {
-  // Session states
-  const [hospitalSession, setHospitalSession] = useState<HospitalSession | null>({
+export default function HospitalClinicalEHR() {
+  // Sidenav navigation
+  const [navSection, setNavSection] = useState<"patient_lookup" | "er_triage" | "ward_patients" | "facility_settings">("patient_lookup");
+
+  // Facility & Session
+  const [hospitalSession, setHospitalSession] = useState<HospitalSession>({
     id: "hosp-1",
     hospital_id: "HOSP-AIIMS-01",
     name: "AIIMS New Delhi - Trauma & Emergency Center",
@@ -92,7 +95,8 @@ export default function HospitalEHRDashboard() {
     city: "New Delhi",
     state: "Delhi",
   });
-  const [staffSession, setStaffSession] = useState<StaffSession | null>({
+
+  const [staffSession, setStaffSession] = useState<StaffSession>({
     doctor_id: "DOC-9081",
     doctor_name: "Dr. Arvind Swaminathan, MD",
     department: "Emergency Medicine & Trauma Resuscitation",
@@ -101,31 +105,30 @@ export default function HospitalEHRDashboard() {
 
   const [showSwitchFacility, setShowSwitchFacility] = useState(false);
   const [facilitySelect, setFacilitySelect] = useState("HOSP-AIIMS-01");
-  const [docNameInput, setDocNameInput] = useState("Dr. Arvind Swaminathan, MD");
+  const [doctorNameInput, setDoctorNameInput] = useState("Dr. Arvind Swaminathan, MD");
 
-  // Patient Search
-  const [searchQuery, setSearchQuery] = useState("PRAN-ba42c5c2");
+  // Patient Search & EHR
+  const [searchPid, setSearchPid] = useState("PRAN-ba42c5c2");
   const [isSearching, setIsSearching] = useState(false);
   const [patientData, setPatientData] = useState<PatientSearchResponse | null>(null);
   const [searchError, setSearchError] = useState<string | null>(null);
 
-  // Active EHR Clinical Tab
-  const [clinicalTab, setClinicalTab] = useState<"triage" | "allergies" | "medications" | "history" | "vitals" | "audit">("triage");
+  // Clinical Tab
+  const [clinicalTab, setClinicalTab] = useState<"triage" | "medications" | "vitals" | "history" | "audit">("triage");
 
-  // Bed & Department stats
-  const [quickStats] = useState({
-    erOccupancy: "92%",
-    resusBedsAvailable: 3,
-    traumaCasesToday: 18,
-    bloodBankOpos: "14 Units",
-  });
+  // Department quick metrics
+  const erMetrics = {
+    occupancy: "88%",
+    openBeds: 4,
+    traumaCases: 19,
+    bloodBankUnits: "14 Units",
+  };
 
-  // Recent looked up patients history in current session
-  const [recentLookups, setRecentLookups] = useState<Array<{ pid: string; name: string; time: string; status: string }>>([
-    { pid: "PRAN-ba42c5c2", name: "Sreeju S", time: "Just now", status: "Active (Clear)" },
-    { pid: "PRAN-9921D8A2", name: "Kavita Ramachandran", time: "18m ago", status: "Active (Severe Allergy)" },
-    { pid: "PRAN-4410A1B0", name: "Rohan Varma", time: "1h 10m ago", status: "Suspended" },
-  ]);
+  const recentPatients = [
+    { pid: "PRAN-ba42c5c2", name: "Sreeju S", age: 19, blood: "B+", status: "Active (Clear)" },
+    { pid: "PRAN-9921D8A2", name: "Kavita Ramachandran", age: 34, blood: "O+", status: "Active (Allergy Alert)" },
+    { pid: "PRAN-4410A1B0", name: "Rohan Varma", age: 48, blood: "A+", status: "Suspended" },
+  ];
 
   const performSearch = async (pid: string) => {
     if (!pid.trim()) return;
@@ -133,7 +136,9 @@ export default function HospitalEHRDashboard() {
     setSearchError(null);
 
     try {
-      const res = await fetch(`/api/hospitals/search-patient?prana_id=${encodeURIComponent(pid.trim())}&hospital_id=${hospitalSession?.hospital_id || "HOSP-AIIMS-01"}`);
+      const res = await fetch(
+        `/api/hospitals/search-patient?prana_id=${encodeURIComponent(pid.trim())}&hospital_id=${encodeURIComponent(hospitalSession.hospital_id)}`
+      );
       const data = await res.json();
 
       if (!res.ok || !data.success) {
@@ -141,14 +146,6 @@ export default function HospitalEHRDashboard() {
       }
 
       setPatientData(data as PatientSearchResponse);
-
-      // Add to recent lookups if not present
-      if (!recentLookups.some(r => r.pid === data.patient.prana_id)) {
-        setRecentLookups(prev => [
-          { pid: data.patient.prana_id, name: data.patient.full_name, time: "Just now", status: data.allowed ? "Active (Clear)" : "Suspended" },
-          ...prev.slice(0, 4)
-        ]);
-      }
     } catch (err: unknown) {
       setSearchError(err instanceof Error ? err.message : "Failed to retrieve clinical file");
       setPatientData(null);
@@ -162,78 +159,151 @@ export default function HospitalEHRDashboard() {
   }, []);
 
   return (
-    <div className="min-h-screen bg-slate-950 text-slate-100 flex flex-col font-sans selection:bg-teal-500 selection:text-black">
-      {/* Enterprise Hospital Top Navigation Bar */}
-      <header className="bg-slate-900 border-b border-slate-800 sticky top-0 z-50 shadow-md">
-        <div className="px-4 sm:px-6 h-16 flex items-center justify-between">
-          {/* Hospital Branding */}
-          <div className="flex items-center gap-3.5">
-            <div className="w-10 h-10 rounded-xl bg-gradient-to-tr from-teal-600 to-emerald-500 flex items-center justify-center text-white text-xl font-bold shadow-lg shadow-teal-900/30">
+    <div className="min-h-screen bg-slate-50 text-slate-900 flex font-sans selection:bg-teal-600 selection:text-white antialiased">
+      {/* ─── LEFT COLLAPSIBLE SIDENAV ─── */}
+      <aside className="w-64 bg-white border-r border-slate-200 flex flex-col justify-between shrink-0 shadow-sm">
+        <div>
+          {/* Hospital Logo Header */}
+          <div className="h-16 px-5 border-b border-slate-100 flex items-center gap-3">
+            <div className="w-9 h-9 rounded-lg bg-teal-600 flex items-center justify-center text-white font-bold text-lg shadow-sm">
               🏥
             </div>
-            <div>
-              <div className="flex items-center gap-2">
-                <span className="font-extrabold text-base tracking-tight text-white">
-                  PRANA • Clinical EHR & Trauma Portal
-                </span>
-                <span className="text-[10px] bg-teal-950 border border-teal-500/50 text-teal-300 px-2 py-0.5 rounded font-mono font-bold uppercase tracking-wider">
-                  Level 1 Trauma Center
-                </span>
-              </div>
-              <p className="text-xs text-slate-400">
-                {hospitalSession?.name} • <span className="text-teal-400 font-mono">{hospitalSession?.hospital_id}</span>
-              </p>
+            <div className="leading-tight">
+              <div className="font-bold text-sm tracking-tight text-slate-900">PRANA Health</div>
+              <div className="text-[11px] text-teal-700 font-semibold uppercase tracking-wider">Hospital Clinical EHR</div>
             </div>
           </div>
 
-          {/* Quick Realtime ER Stats Pill */}
-          <div className="hidden lg:flex items-center gap-4 bg-slate-950/80 px-4 py-1.5 rounded-xl border border-slate-800 text-xs">
-            <div>
-              <span className="text-slate-500 block text-[10px] uppercase font-bold">ER Load</span>
-              <span className="font-bold text-amber-400">{quickStats.erOccupancy}</span>
-            </div>
-            <div className="h-6 w-px bg-slate-800"></div>
-            <div>
-              <span className="text-slate-500 block text-[10px] uppercase font-bold">Resus Beds</span>
-              <span className="font-bold text-emerald-400">{quickStats.resusBedsAvailable} Open</span>
-            </div>
-            <div className="h-6 w-px bg-slate-800"></div>
-            <div>
-              <span className="text-slate-500 block text-[10px] uppercase font-bold">Blood Bank O+</span>
-              <span className="font-bold text-red-400">{quickStats.bloodBankOpos}</span>
-            </div>
-          </div>
-
-          {/* Attending Physician Profile & System Links */}
-          <div className="flex items-center gap-3">
-            <div className="hidden md:flex flex-col text-right">
-              <span className="text-xs font-bold text-white">{staffSession?.doctor_name}</span>
-              <span className="text-[10px] text-teal-400 font-mono">{staffSession?.role}</span>
-            </div>
+          {/* Current Facility Badge */}
+          <div className="p-4 mx-3 my-3 bg-slate-50 border border-slate-200 rounded-xl">
+            <div className="text-[10px] font-bold uppercase tracking-wider text-slate-500">Active Facility</div>
+            <div className="font-bold text-xs text-slate-800 truncate mt-0.5">{hospitalSession.name}</div>
+            <div className="text-[11px] font-mono text-teal-700 mt-0.5 font-medium">{hospitalSession.hospital_id}</div>
             <button
               onClick={() => setShowSwitchFacility(!showSwitchFacility)}
-              className="text-xs font-bold px-3 py-1.5 rounded-lg bg-slate-800 hover:bg-slate-700 text-slate-200 border border-slate-700 transition flex items-center gap-1.5"
+              className="mt-2 text-[11px] font-bold text-teal-700 hover:text-teal-800 underline block"
             >
-              <span>⚙️ Facility</span>
+              Switch facility / staff →
             </button>
-            <Link
-              href="/admin"
-              className="text-xs font-bold px-3 py-1.5 rounded-lg bg-purple-950/80 hover:bg-purple-900 border border-purple-700/60 text-purple-300 transition"
+          </div>
+
+          {/* Navigation Links */}
+          <nav className="px-3 space-y-1">
+            <button
+              onClick={() => setNavSection("patient_lookup")}
+              className={`w-full flex items-center gap-3 px-3 py-2.5 rounded-lg text-xs font-semibold text-left transition ${
+                navSection === "patient_lookup"
+                  ? "bg-teal-50 text-teal-800 border border-teal-200 shadow-sm"
+                  : "text-slate-600 hover:bg-slate-100 hover:text-slate-900"
+              }`}
             >
-              Superadmin
+              <span className="text-base">🪪</span>
+              <span>Patient PRANA Search</span>
+            </button>
+
+            <button
+              onClick={() => setNavSection("er_triage")}
+              className={`w-full flex items-center gap-3 px-3 py-2.5 rounded-lg text-xs font-semibold text-left transition ${
+                navSection === "er_triage"
+                  ? "bg-teal-50 text-teal-800 border border-teal-200 shadow-sm"
+                  : "text-slate-600 hover:bg-slate-100 hover:text-slate-900"
+              }`}
+            >
+              <span className="text-base">🚨</span>
+              <span>Emergency Triage Ward</span>
+            </button>
+
+            <button
+              onClick={() => setNavSection("ward_patients")}
+              className={`w-full flex items-center gap-3 px-3 py-2.5 rounded-lg text-xs font-semibold text-left transition ${
+                navSection === "ward_patients"
+                  ? "bg-teal-50 text-teal-800 border border-teal-200 shadow-sm"
+                  : "text-slate-600 hover:bg-slate-100 hover:text-slate-900"
+              }`}
+            >
+              <span className="text-base">📋</span>
+              <span>Shift Admissions</span>
+            </button>
+
+            <button
+              onClick={() => setNavSection("facility_settings")}
+              className={`w-full flex items-center gap-3 px-3 py-2.5 rounded-lg text-xs font-semibold text-left transition ${
+                navSection === "facility_settings"
+                  ? "bg-teal-50 text-teal-800 border border-teal-200 shadow-sm"
+                  : "text-slate-600 hover:bg-slate-100 hover:text-slate-900"
+              }`}
+            >
+              <span className="text-base">⚙️</span>
+              <span>Facility Information</span>
+            </button>
+          </nav>
+        </div>
+
+        {/* Sidenav Footer & Links */}
+        <div className="p-4 border-t border-slate-100 space-y-3">
+          <div className="flex items-center gap-2.5">
+            <div className="w-8 h-8 rounded-full bg-slate-200 flex items-center justify-center font-bold text-xs text-slate-700">
+              Dr
+            </div>
+            <div className="text-xs truncate">
+              <div className="font-bold text-slate-800 truncate">{staffSession.doctor_name}</div>
+              <div className="text-[10px] text-slate-500 font-mono truncate">{staffSession.doctor_id}</div>
+            </div>
+          </div>
+
+          <div className="pt-2 border-t border-slate-100 flex items-center justify-between text-[11px] font-semibold">
+            <Link href="/paramedic" className="text-slate-600 hover:text-teal-700">
+              🚑 Paramedic
+            </Link>
+            <Link href="/admin" className="text-slate-600 hover:text-teal-700">
+              🛡️ Admin
+            </Link>
+            <Link href="/scan" className="text-slate-600 hover:text-teal-700">
+              📷 QR
             </Link>
           </div>
         </div>
+      </aside>
 
-        {/* Facility Switcher Modal Dropdown */}
+      {/* ─── MAIN WORKSPACE CONTENT ─── */}
+      <div className="flex-1 flex flex-col min-w-0">
+        {/* Top Navbar */}
+        <header className="h-16 bg-white border-b border-slate-200 px-6 flex items-center justify-between shadow-xs">
+          <div className="flex items-center gap-3">
+            <span className="font-bold text-sm text-slate-800">
+              {hospitalSession.name}
+            </span>
+            <span className="text-slate-300">/</span>
+            <span className="text-xs text-slate-500 font-medium">
+              {staffSession.department}
+            </span>
+          </div>
+
+          <div className="flex items-center gap-4 text-xs">
+            <div className="hidden md:flex items-center gap-4 text-slate-600">
+              <span>ER Load: <strong className="text-amber-700">{erMetrics.occupancy}</strong></span>
+              <span>Resus Beds: <strong className="text-emerald-700">{erMetrics.openBeds} Open</strong></span>
+              <span>Blood O+: <strong className="text-red-700">{erMetrics.bloodBankUnits}</strong></span>
+            </div>
+            <div className="h-5 w-px bg-slate-200"></div>
+            <Link
+              href="/admin"
+              className="text-xs font-semibold px-3 py-1.5 rounded-lg border border-slate-200 bg-white hover:bg-slate-50 text-slate-700 transition"
+            >
+              Superadmin Portal
+            </Link>
+          </div>
+        </header>
+
+        {/* Facility Credentials Switcher */}
         {showSwitchFacility && (
-          <div className="bg-slate-900 border-b border-slate-800 p-4 px-6 flex flex-wrap items-center justify-between gap-4 animate-fade-in text-xs">
+          <div className="bg-white border-b border-slate-200 p-4 px-6 flex flex-wrap items-center justify-between gap-4 text-xs shadow-xs">
             <div className="flex items-center gap-3 flex-wrap">
-              <span className="font-bold text-slate-300">Active Hospital:</span>
+              <span className="font-bold text-slate-700">Select Accredited Hospital:</span>
               <select
                 value={facilitySelect}
                 onChange={(e) => setFacilitySelect(e.target.value)}
-                className="bg-slate-950 border border-slate-700 rounded-lg px-3 py-1.5 text-teal-300 font-mono outline-none"
+                className="bg-white border border-slate-300 rounded-lg px-3 py-1.5 text-slate-800 outline-none focus:ring-1 focus:ring-teal-600"
               >
                 <option value="HOSP-AIIMS-01">AIIMS New Delhi - Trauma & Emergency Center</option>
                 <option value="HOSP-MAX-02">Max Super Speciality Hospital Saket</option>
@@ -241,202 +311,99 @@ export default function HospitalEHRDashboard() {
                 <option value="HOSP-FORTIS-04">Fortis Memorial Research Institute</option>
               </select>
 
-              <span className="font-bold text-slate-300 ml-2">Duty Physician:</span>
+              <span className="font-bold text-slate-700 ml-2">Duty Physician:</span>
               <input
                 type="text"
-                value={docNameInput}
-                onChange={(e) => setDocNameInput(e.target.value)}
-                className="bg-slate-950 border border-slate-700 rounded-lg px-3 py-1.5 text-white outline-none w-56"
+                value={doctorNameInput}
+                onChange={(e) => setDoctorNameInput(e.target.value)}
+                className="bg-white border border-slate-300 rounded-lg px-3 py-1.5 text-slate-800 outline-none focus:ring-1 focus:ring-teal-600 w-60"
               />
             </div>
             <div className="flex gap-2">
               <button
                 onClick={() => {
-                  setHospitalSession(prev => prev ? { ...prev, hospital_id: facilitySelect, name: facilitySelect.includes("AIIMS") ? "AIIMS New Delhi - Trauma Center" : facilitySelect.includes("MAX") ? "Max Super Speciality Saket" : "Apollo Hospitals" } : null);
-                  setStaffSession(prev => prev ? { ...prev, doctor_name: docNameInput } : null);
+                  setHospitalSession({
+                    ...hospitalSession,
+                    hospital_id: facilitySelect,
+                    name: facilitySelect.includes("AIIMS") ? "AIIMS New Delhi - Trauma & Emergency Center" :
+                          facilitySelect.includes("MAX") ? "Max Super Speciality Hospital Saket" :
+                          facilitySelect.includes("APOLLO") ? "Indraprastha Apollo Hospitals" : "Fortis Memorial Research Institute"
+                  });
+                  setStaffSession({ ...staffSession, doctor_name: doctorNameInput });
                   setShowSwitchFacility(false);
                 }}
-                className="bg-teal-600 hover:bg-teal-500 text-white font-bold px-3 py-1.5 rounded-lg transition"
+                className="bg-teal-600 hover:bg-teal-700 text-white font-bold px-3 py-1.5 rounded-lg transition"
               >
-                Apply Facility Credentials
+                Apply
               </button>
               <button
                 onClick={() => setShowSwitchFacility(false)}
-                className="bg-slate-800 text-slate-400 hover:text-white px-3 py-1.5 rounded-lg"
+                className="bg-slate-100 hover:bg-slate-200 text-slate-700 px-3 py-1.5 rounded-lg font-medium"
               >
-                Close
+                Cancel
               </button>
             </div>
           </div>
         )}
-      </header>
 
-      {/* Main Workstation Layout */}
-      <div className="flex-1 max-w-[1600px] w-full mx-auto p-4 sm:p-6 grid grid-cols-1 lg:grid-cols-12 gap-6">
-        {/* Left Column: Universal Patient Search & Emergency Intake (4 Cols) */}
-        <div className="lg:col-span-4 space-y-6">
-          {/* Smart Card & PRANA ID Intake */}
-          <div className="bg-slate-900 border border-slate-800 rounded-2xl p-5 shadow-xl space-y-4">
-            <div className="flex items-center justify-between border-b border-slate-800 pb-3">
-              <h2 className="text-xs font-black uppercase tracking-wider text-slate-300 flex items-center gap-2">
-                <span>⚡</span> Patient Admission & PRANA Search
-              </h2>
-              <span className="text-[10px] font-mono bg-teal-950 text-teal-400 border border-teal-800/80 px-2 py-0.5 rounded font-bold">
-                EHR SYNC
-              </span>
-            </div>
-
-            <div className="space-y-3">
+        {/* Content Body */}
+        <main className="flex-1 p-6 overflow-y-auto space-y-6">
+          {/* SEARCH & INTAKE BAR */}
+          <div className="bg-white border border-slate-200 rounded-xl p-5 shadow-xs">
+            <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4">
               <div>
-                <label className="block text-xs font-bold text-slate-300 mb-1">
-                  Universal PRANA Card Identifier
-                </label>
-                <div className="flex gap-2">
-                  <div className="relative flex-1">
-                    <input
-                      type="text"
-                      value={searchQuery}
-                      onChange={(e) => setSearchQuery(e.target.value)}
-                      placeholder="e.g. PRAN-ba42c5c2"
-                      className="w-full bg-slate-950 border border-slate-700 focus:border-teal-500 rounded-xl px-3.5 py-2.5 text-sm font-mono text-teal-300 uppercase outline-none"
-                    />
-                  </div>
-                  <button
-                    onClick={() => performSearch(searchQuery)}
-                    disabled={isSearching || !searchQuery}
-                    className="bg-teal-600 hover:bg-teal-500 disabled:opacity-50 text-white font-bold px-4 rounded-xl text-sm transition flex items-center gap-1.5 shadow"
-                  >
-                    {isSearching ? "Searching..." : "Inspect"}
-                  </button>
-                </div>
+                <h1 className="text-lg font-bold text-slate-900 tracking-tight">Patient Search & Emergency Clearance</h1>
+                <p className="text-xs text-slate-500 mt-0.5">
+                  Inspect patient record, check card authorization status, and verify critical allergies.
+                </p>
               </div>
 
-              {searchError && (
-                <div className="p-3 rounded-xl bg-red-950/60 border border-red-800 text-xs text-red-300 flex items-start gap-2">
-                  <span>❌</span>
-                  <div>{searchError}</div>
-                </div>
-              )}
-
-              <div className="flex items-center justify-between text-[11px] text-slate-400 pt-1">
-                <span>Sample Patient ID:</span>
-                <span
-                  onClick={() => { setSearchQuery("PRAN-ba42c5c2"); performSearch("PRAN-ba42c5c2"); }}
-                  className="font-mono text-teal-400 font-bold hover:underline cursor-pointer"
+              {/* Search Form */}
+              <div className="flex gap-2 sm:w-96">
+                <input
+                  type="text"
+                  value={searchPid}
+                  onChange={(e) => setSearchPid(e.target.value)}
+                  placeholder="Enter PRANA ID (e.g. PRAN-ba42c5c2)"
+                  className="flex-1 bg-white border border-slate-300 focus:border-teal-600 focus:ring-1 focus:ring-teal-600 rounded-lg px-3.5 py-2 text-xs font-mono text-slate-900 outline-none uppercase"
+                />
+                <button
+                  onClick={() => performSearch(searchPid)}
+                  disabled={isSearching || !searchPid}
+                  className="bg-teal-600 hover:bg-teal-700 disabled:opacity-50 text-white font-bold px-4 rounded-lg text-xs transition shadow-xs"
                 >
-                  PRAN-ba42c5c2
-                </span>
+                  {isSearching ? "Searching..." : "Search"}
+                </button>
               </div>
             </div>
 
-            {/* Hardware & Hardware scanner quick trigger */}
-            <div className="pt-2 border-t border-slate-800 flex items-center justify-between text-xs">
-              <span className="text-slate-400">Emergency Smart Scanner:</span>
-              <Link
-                href="/scan"
-                className="text-xs font-bold text-teal-400 hover:text-teal-300 flex items-center gap-1"
-              >
-                <span>📷 Open Camera Scanner →</span>
-              </Link>
-            </div>
+            {searchError && (
+              <div className="mt-3 p-3 bg-red-50 border border-red-200 rounded-lg text-xs text-red-700">
+                {searchError}
+              </div>
+            )}
           </div>
 
-          {/* Recent Emergency Admissions in this Shift */}
-          <div className="bg-slate-900 border border-slate-800 rounded-2xl p-5 shadow-xl space-y-3">
-            <div className="flex items-center justify-between">
-              <h3 className="text-xs font-bold uppercase tracking-wider text-slate-300 flex items-center gap-2">
-                <span>🕒</span> Recent Ward Lookups
-              </h3>
-              <span className="text-[10px] text-slate-500">Current Duty Shift</span>
-            </div>
-
-            <div className="divide-y divide-slate-800">
-              {recentLookups.map((r, idx) => (
-                <div
-                  key={idx}
-                  onClick={() => { setSearchQuery(r.pid); performSearch(r.pid); }}
-                  className="py-2.5 flex items-center justify-between cursor-pointer hover:bg-slate-800/50 p-2 rounded-xl transition"
-                >
+          {/* EHR PATIENT DISPLAY */}
+          {patientData ? (
+            <div className="space-y-6">
+              {/* Patient Banner */}
+              <div className="bg-white border border-slate-200 rounded-xl p-6 shadow-xs">
+                <div className="flex flex-wrap items-center justify-between gap-4 border-b border-slate-100 pb-5">
                   <div>
-                    <div className="font-bold text-white text-xs">{r.name}</div>
-                    <span className="font-mono text-[10px] text-teal-400">{r.pid}</span>
-                  </div>
-                  <div className="text-right">
-                    <span className={`text-[10px] font-bold px-2 py-0.5 rounded-full ${
-                      r.status.includes("Severe") ? "bg-red-950 text-red-300 border border-red-800" :
-                      r.status.includes("Suspended") ? "bg-amber-950 text-amber-300 border border-amber-800" :
-                      "bg-emerald-950 text-emerald-400 border border-emerald-800"
-                    }`}>
-                      {r.status}
-                    </span>
-                    <div className="text-[10px] text-slate-500 mt-0.5">{r.time}</div>
-                  </div>
-                </div>
-              ))}
-            </div>
-          </div>
-
-          {/* Critical Hospital Protocol Guidelines */}
-          <div className="bg-slate-900/60 border border-slate-800 rounded-2xl p-4 text-xs space-y-2">
-            <h4 className="font-bold text-slate-300 uppercase tracking-wider text-[10px]">Hospital Trauma Guidelines</h4>
-            <div className="space-y-1.5 text-slate-400 text-[11px]">
-              <div className="flex items-start gap-1.5">
-                <span className="text-red-400 font-bold">1.</span>
-                <span>Prioritize verification of <strong>Severe Anaphylactic Allergies</strong> prior to antibiotic or IV contrast push.</span>
-              </div>
-              <div className="flex items-start gap-1.5">
-                <span className="text-amber-400 font-bold">2.</span>
-                <span>Check for <strong>Implanted Devices</strong> (e.g. pacemakers, neurostimulators) before ordering emergent MRI.</span>
-              </div>
-              <div className="flex items-start gap-1.5">
-                <span className="text-teal-400 font-bold">3.</span>
-                <span>All lookups generate an encrypted signature and are immutably logged for clinical audit.</span>
-              </div>
-            </div>
-          </div>
-        </div>
-
-        {/* Right Column: Full Interactive Electronic Health Record (EHR) (8 Cols) */}
-        <div className="lg:col-span-8 space-y-6">
-          {!patientData ? (
-            <div className="bg-slate-900 border border-dashed border-slate-800 rounded-3xl p-16 text-center space-y-4">
-              <div className="w-16 h-16 rounded-2xl bg-slate-800 mx-auto flex items-center justify-center text-3xl">
-                🪪
-              </div>
-              <h3 className="text-lg font-bold text-white">No Clinical Record Selected</h3>
-              <p className="text-slate-400 text-xs max-w-md mx-auto">
-                Scan a patient&apos;s physical PRANA card or search by their universal PRANA number to view real-time electronic health records, active medications, critical allergies, and baseline telemetry.
-              </p>
-              <button
-                onClick={() => performSearch("PRAN-ba42c5c2")}
-                className="bg-teal-600 hover:bg-teal-500 text-white font-bold text-xs px-5 py-2.5 rounded-xl transition shadow"
-              >
-                Inspect Sample Patient (PRAN-ba42c5c2)
-              </button>
-            </div>
-          ) : (
-            <div className="space-y-5 animate-fade-in">
-              {/* Patient Banner: Clinical Header */}
-              <div className="bg-slate-900 border border-slate-800 rounded-3xl p-6 shadow-2xl relative overflow-hidden">
-                <div className="flex flex-wrap items-start justify-between gap-4">
-                  <div className="space-y-1">
                     <div className="flex items-center gap-3">
-                      <h1 className="text-2xl sm:text-3xl font-black text-white tracking-tight">
-                        {patientData.patient.full_name}
-                      </h1>
-                      <span
-                        className={`text-xs px-2.5 py-0.5 rounded-full font-bold uppercase ${
-                          patientData.allowed
-                            ? "bg-emerald-950 border border-emerald-500/50 text-emerald-400"
-                            : "bg-red-950 border border-red-500/50 text-red-400"
-                        }`}
-                      >
-                        {patientData.allowed ? "ACCESS PERMITTED (ACTIVE CARD)" : "CARD SUSPENDED BY USER"}
+                      <h2 className="text-xl font-bold text-slate-900">{patientData.patient.full_name}</h2>
+                      <span className={`text-xs px-2.5 py-0.5 rounded-full font-bold uppercase ${
+                        patientData.allowed
+                          ? "bg-emerald-50 text-emerald-700 border border-emerald-200"
+                          : "bg-red-50 text-red-700 border border-red-200"
+                      }`}>
+                        {patientData.allowed ? "Access Permitted (Active Card)" : "Card Suspended"}
                       </span>
                     </div>
 
-                    <div className="flex flex-wrap items-center gap-3 text-xs text-slate-400 font-medium">
-                      <span>PRANA ID: <strong className="font-mono text-teal-400">{patientData.patient.prana_id}</strong></span>
+                    <div className="flex flex-wrap items-center gap-3 mt-2 text-xs text-slate-500 font-medium">
+                      <span>PRANA ID: <strong className="font-mono text-slate-800">{patientData.patient.prana_id}</strong></span>
                       <span>•</span>
                       <span>DOB: {patientData.patient.date_of_birth} ({patientData.patient.age} Yrs)</span>
                       <span>•</span>
@@ -448,29 +415,29 @@ export default function HospitalEHRDashboard() {
                     </div>
                   </div>
 
-                  {/* Blood Group Badge */}
-                  <div className="bg-slate-950 border-2 border-red-500/80 rounded-2xl px-6 py-3 text-center shadow-lg shadow-red-950/50">
-                    <span className="block text-[10px] uppercase font-bold text-red-400 tracking-wider">Blood Group</span>
-                    <span className="text-3xl font-black text-red-500">{patientData.patient.blood_group}</span>
+                  {/* Blood Group Box */}
+                  <div className="bg-red-50 border border-red-200 rounded-xl px-5 py-3 text-center">
+                    <span className="block text-[10px] uppercase font-bold text-red-600 tracking-wider">Blood Group</span>
+                    <span className="text-2xl font-black text-red-700">{patientData.patient.blood_group}</span>
                   </div>
                 </div>
 
-                {/* Clinical Tabs Navigation */}
-                <div className="flex border-b border-slate-800 pt-6 gap-2 text-xs font-bold overflow-x-auto">
+                {/* Sub-tab Navigation */}
+                <div className="flex border-b border-slate-100 pt-4 gap-2 text-xs font-semibold overflow-x-auto">
                   {[
                     { id: "triage", label: "🚨 Emergency Triage & Allergies" },
-                    { id: "medications", label: "💊 Medications & Prescriptions" },
-                    { id: "vitals", label: "📊 Baseline Vitals & Labs" },
-                    { id: "history", label: "🏥 Surgical History & Implants" },
-                    { id: "audit", label: "📜 Access Audit & Relay" },
+                    { id: "medications", label: "💊 Current Medications" },
+                    { id: "vitals", label: "📊 Baseline Vitals" },
+                    { id: "history", label: "🏥 Surgical & Implants" },
+                    { id: "audit", label: "📜 Forensic Access Chain" },
                   ].map((tab) => (
                     <button
                       key={tab.id}
                       onClick={() => setClinicalTab(tab.id as typeof clinicalTab)}
-                      className={`px-4 py-2.5 rounded-t-xl transition whitespace-nowrap ${
+                      className={`px-4 py-2.5 rounded-t-lg transition whitespace-nowrap ${
                         clinicalTab === tab.id
-                          ? "bg-slate-800 text-teal-300 border-b-2 border-teal-400 shadow"
-                          : "text-slate-400 hover:text-slate-200"
+                          ? "text-teal-700 border-b-2 border-teal-600 font-bold bg-teal-50/50"
+                          : "text-slate-500 hover:text-slate-800"
                       }`}
                     >
                       {tab.label}
@@ -479,99 +446,94 @@ export default function HospitalEHRDashboard() {
                 </div>
               </div>
 
-              {/* TAB 1: EMERGENCY TRIAGE & ALLERGIES */}
+              {/* TAB 1: ALLERGIES & TRIAGE */}
               {clinicalTab === "triage" && (
-                <div className="space-y-5">
-                  {/* Critical Allergy Alert Panel */}
-                  <div className="bg-red-950/40 border-2 border-red-600/70 rounded-2xl p-5 space-y-3 shadow-xl">
+                <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
+                  {/* Critical Allergies */}
+                  <div className="bg-white border border-slate-200 rounded-xl p-5 space-y-4 shadow-xs">
                     <div className="flex items-center justify-between">
-                      <div className="flex items-center gap-2">
-                        <span className="text-xl">⚠️</span>
-                        <h3 className="text-red-400 font-black text-sm uppercase tracking-wider">
-                          Critical Allergic Reactions & Contraindications
-                        </h3>
-                      </div>
-                      <span className="text-xs bg-red-900 text-red-200 font-black px-2.5 py-0.5 rounded-full uppercase">
-                        High Priority Flag
+                      <h3 className="font-bold text-xs uppercase tracking-wider text-slate-700 flex items-center gap-1.5">
+                        <span className="text-red-600">⚠️</span> Critical Drug & Anaphylaxis Alerts
+                      </h3>
+                      <span className="text-[10px] font-bold text-red-700 bg-red-50 border border-red-200 px-2 py-0.5 rounded">
+                        High Attention
                       </span>
                     </div>
 
                     {patientData.allergies && patientData.allergies.length > 0 ? (
-                      <div className="grid grid-cols-1 sm:grid-cols-2 gap-3 pt-1">
+                      <div className="space-y-3">
                         {patientData.allergies.map((a, idx) => (
-                          <div key={idx} className="bg-slate-950/90 border border-red-900/60 rounded-xl p-4 space-y-1.5">
+                          <div key={idx} className="p-3.5 bg-red-50/60 border border-red-200 rounded-lg">
                             <div className="flex justify-between items-center">
-                              <span className="text-white font-bold text-base">{a.allergen}</span>
-                              <span className="text-[10px] font-bold uppercase px-2 py-0.5 rounded bg-red-950 text-red-300 border border-red-800">
+                              <span className="font-bold text-slate-900 text-sm">{a.allergen}</span>
+                              <span className="text-[10px] font-bold uppercase px-2 py-0.5 rounded bg-red-100 text-red-800">
                                 {a.severity || "Severe"}
                               </span>
                             </div>
-                            <p className="text-xs text-red-200/90 leading-relaxed">
-                              {a.reaction_description || "Anaphylaxis, airway compromise & hypotension risk"}
+                            <p className="text-xs text-slate-600 mt-1">
+                              {a.reaction_description || "Anaphylaxis & acute airway risk"}
                             </p>
                           </div>
                         ))}
                       </div>
                     ) : (
-                      <p className="text-xs text-emerald-400 bg-emerald-950/30 p-3 rounded-xl border border-emerald-800/40">
-                        ✅ No known severe drug allergies documented.
-                      </p>
+                      <p className="text-xs text-slate-500 p-3 bg-slate-50 rounded-lg">No critical drug allergies recorded.</p>
                     )}
                   </div>
 
-                  {/* Diagnoses & Chronic Conditions */}
-                  <div className="bg-slate-900 border border-slate-800 rounded-2xl p-5 space-y-3">
-                    <h3 className="text-xs font-bold uppercase tracking-wider text-slate-300 flex items-center gap-2">
-                      <span>🩺</span> Chronic Medical Conditions & Diagnoses
+                  {/* Chronic Conditions */}
+                  <div className="bg-white border border-slate-200 rounded-xl p-5 space-y-4 shadow-xs">
+                    <h3 className="font-bold text-xs uppercase tracking-wider text-slate-700 flex items-center gap-1.5">
+                      <span>🩺</span> Active Diagnoses & Chronic Illnesses
                     </h3>
+
                     {patientData.conditions && patientData.conditions.length > 0 ? (
-                      <div className="space-y-2">
+                      <div className="space-y-2.5">
                         {patientData.conditions.map((c, idx) => (
-                          <div key={idx} className="bg-slate-950 p-3.5 rounded-xl border border-slate-800 flex items-center justify-between">
+                          <div key={idx} className="p-3 bg-slate-50 border border-slate-200 rounded-lg flex justify-between items-center">
                             <div>
-                              <div className="font-bold text-white text-sm">{c.name}</div>
-                              <div className="text-xs text-slate-400 mt-0.5">
-                                Status: <strong className="text-amber-400 capitalize">{c.status || "Active"}</strong>
-                                {c.treating_doctor && ` • Treating Doctor: ${c.treating_doctor}`}
+                              <div className="font-bold text-slate-800 text-xs">{c.name}</div>
+                              <div className="text-[11px] text-slate-500">
+                                Status: <strong className="text-slate-700 capitalize">{c.status || "Active"}</strong>
+                                {c.treating_doctor && ` • Doctor: ${c.treating_doctor}`}
                               </div>
                             </div>
-                            <span className="text-xs bg-slate-900 text-slate-400 border border-slate-800 px-2.5 py-1 rounded-lg">
+                            <span className="text-[10px] font-bold text-emerald-700 bg-emerald-50 border border-emerald-200 px-2 py-0.5 rounded">
                               Verified
                             </span>
                           </div>
                         ))}
                       </div>
                     ) : (
-                      <p className="text-xs text-slate-400 bg-slate-950 p-3 rounded-xl">No active chronic conditions on file.</p>
+                      <p className="text-xs text-slate-500 p-3 bg-slate-50 rounded-lg">No chronic conditions registered.</p>
                     )}
                   </div>
 
-                  {/* Primary Next-of-Kin Emergency Contacts */}
-                  <div className="bg-slate-900 border border-slate-800 rounded-2xl p-5 space-y-3">
-                    <h3 className="text-xs font-bold uppercase tracking-wider text-slate-300 flex items-center gap-2">
-                      <span>📞</span> Next-of-Kin & Emergency Relay
+                  {/* Emergency Contacts */}
+                  <div className="bg-white border border-slate-200 rounded-xl p-5 space-y-4 lg:col-span-2 shadow-xs">
+                    <h3 className="font-bold text-xs uppercase tracking-wider text-slate-700 flex items-center gap-1.5">
+                      <span>📞</span> Next-of-Kin Emergency Contacts
                     </h3>
+
                     <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
                       {patientData.emergency_contacts && patientData.emergency_contacts.length > 0 ? (
                         patientData.emergency_contacts.map((contact, idx) => (
-                          <div key={idx} className="bg-slate-950 p-4 rounded-xl border border-slate-800 flex items-center justify-between">
+                          <div key={idx} className="p-3.5 bg-slate-50 border border-slate-200 rounded-lg flex justify-between items-center">
                             <div>
-                              <div className="font-bold text-white text-sm">{contact.name}</div>
-                              <div className="text-xs text-slate-400">
-                                Relationship: <strong className="text-teal-400">{contact.relationship}</strong>
-                              </div>
+                              <div className="font-bold text-slate-800 text-xs">{contact.name}</div>
+                              <div className="text-[11px] text-slate-500">Relationship: <strong>{contact.relationship}</strong></div>
                             </div>
                             <a
                               href={`tel:${contact.phone}`}
-                              className="bg-emerald-600 hover:bg-emerald-500 text-white font-bold text-xs px-4 py-2 rounded-xl transition flex items-center gap-1.5 shadow"
+                              className="bg-emerald-600 hover:bg-emerald-700 text-white font-bold text-xs px-3 py-1.5 rounded-lg transition"
                             >
-                              <span>📞 Call</span>
+                              📞 Call Contact
                             </a>
                           </div>
                         ))
                       ) : (
-                        <div className="text-xs text-slate-400 bg-slate-950 p-3 rounded-xl col-span-2">
-                          Universal Relay: 1800-PRANA-RELAY
+                        <div className="text-xs text-slate-500 p-3 bg-slate-50 rounded-lg col-span-2">
+                          Emergency Contact Relay: 1800-PRANA-RELAY
                         </div>
                       )}
                     </div>
@@ -579,167 +541,176 @@ export default function HospitalEHRDashboard() {
                 </div>
               )}
 
-              {/* TAB 2: MEDICATIONS & REGIMEN */}
+              {/* TAB 2: MEDICATIONS */}
               {clinicalTab === "medications" && (
-                <div className="space-y-4">
-                  <div className="bg-slate-900 border border-slate-800 rounded-2xl p-5 space-y-4">
-                    <div className="flex items-center justify-between">
-                      <h3 className="text-xs font-bold uppercase tracking-wider text-slate-300 flex items-center gap-2">
-                        <span>💊</span> Active Prescription Regimen
-                      </h3>
-                      <span className="text-xs text-teal-400 font-mono">
-                        {patientData.medications?.length || 0} Registered Medicines
-                      </span>
-                    </div>
+                <div className="bg-white border border-slate-200 rounded-xl p-5 shadow-xs space-y-4">
+                  <div className="flex items-center justify-between border-b border-slate-100 pb-3">
+                    <h3 className="font-bold text-xs uppercase tracking-wider text-slate-700">
+                      Active Prescriptions & Dosages
+                    </h3>
+                    <span className="text-xs text-slate-500 font-medium">{patientData.medications.length} Medications</span>
+                  </div>
 
-                    {patientData.medications && patientData.medications.length > 0 ? (
-                      <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
-                        {patientData.medications.map((m, idx) => (
-                          <div key={idx} className="bg-slate-950 p-4 rounded-xl border border-slate-800 space-y-2">
-                            <div className="flex justify-between items-start">
-                              <span className="font-bold text-emerald-400 text-base">{m.name}</span>
-                              <span className="text-xs font-mono bg-slate-900 text-slate-200 px-2.5 py-1 rounded border border-slate-800 font-bold">
-                                {m.dose}
-                              </span>
-                            </div>
-                            <div className="text-xs text-slate-400 space-y-0.5">
-                              <div>Frequency: <strong className="text-slate-200">{m.frequency || "Daily"}</strong></div>
-                              {m.prescribed_by && <div>Prescribed by: <span className="text-teal-400">{m.prescribed_by}</span></div>}
-                            </div>
-                          </div>
-                        ))}
+                  <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
+                    {patientData.medications.map((m, idx) => (
+                      <div key={idx} className="p-4 bg-slate-50 border border-slate-200 rounded-lg space-y-1.5">
+                        <div className="flex justify-between items-start">
+                          <span className="font-bold text-slate-900 text-sm">{m.name}</span>
+                          <span className="font-mono text-xs font-bold text-slate-700 bg-white border border-slate-200 px-2 py-0.5 rounded">
+                            {m.dose}
+                          </span>
+                        </div>
+                        <div className="text-xs text-slate-500">
+                          <div>Frequency: <strong className="text-slate-700">{m.frequency || "Daily"}</strong></div>
+                          {m.prescribed_by && <div>Prescribed By: <strong>{m.prescribed_by}</strong></div>}
+                        </div>
                       </div>
-                    ) : (
-                      <p className="text-xs text-slate-400 bg-slate-950 p-3 rounded-xl">No active medications registered.</p>
-                    )}
+                    ))}
                   </div>
                 </div>
               )}
 
-              {/* TAB 3: VITALS TELEMETRY */}
+              {/* TAB 3: VITALS */}
               {clinicalTab === "vitals" && (
-                <div className="space-y-4">
-                  <div className="bg-slate-900 border border-slate-800 rounded-2xl p-5 space-y-4">
-                    <h3 className="text-xs font-bold uppercase tracking-wider text-slate-300 flex items-center gap-2">
-                      <span>📊</span> Baseline Telemetry & Physiological Indicators
+                <div className="bg-white border border-slate-200 rounded-xl p-5 shadow-xs space-y-4">
+                  <h3 className="font-bold text-xs uppercase tracking-wider text-slate-700">
+                    Baseline Physiological Telemetry
+                  </h3>
+
+                  <div className="grid grid-cols-2 sm:grid-cols-4 gap-4">
+                    {patientData.vitals.map((v, idx) => (
+                      <div key={idx} className="p-4 bg-slate-50 border border-slate-200 rounded-lg text-center space-y-1">
+                        <span className="block text-[10px] font-bold uppercase text-slate-500 tracking-wider">
+                          {v.vital_type.replace("_", " ")}
+                        </span>
+                        <div className="text-2xl font-black text-teal-800">
+                          {v.value} <span className="text-xs font-normal text-slate-500">{v.unit}</span>
+                        </div>
+                      </div>
+                    ))}
+                  </div>
+                </div>
+              )}
+
+              {/* TAB 4: SURGERY & DEVICES */}
+              {clinicalTab === "history" && (
+                <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
+                  {/* Devices */}
+                  <div className="bg-white border border-slate-200 rounded-xl p-5 space-y-3 shadow-xs">
+                    <h3 className="font-bold text-xs uppercase tracking-wider text-slate-700 flex items-center justify-between">
+                      <span>⚡ Implanted Devices</span>
+                      <span className="text-[10px] font-bold text-amber-700 bg-amber-50 border border-amber-200 px-2 py-0.5 rounded">MRI Caution</span>
                     </h3>
 
-                    {patientData.vitals && patientData.vitals.length > 0 ? (
-                      <div className="grid grid-cols-2 sm:grid-cols-3 gap-3.5">
-                        {patientData.vitals.map((v, idx) => (
-                          <div key={idx} className="bg-slate-950 p-4 rounded-xl border border-slate-800 text-center space-y-1">
-                            <span className="block text-[10px] uppercase font-bold text-slate-400 tracking-wider">
-                              {v.vital_type.replace("_", " ")}
-                            </span>
-                            <div className="text-3xl font-black text-teal-400">
-                              {v.value} <span className="text-xs font-normal text-slate-400">{v.unit}</span>
-                            </div>
-                          </div>
-                        ))}
-                      </div>
-                    ) : (
-                      <p className="text-xs text-slate-400 bg-slate-950 p-3 rounded-xl">No vitals currently recorded.</p>
-                    )}
-                  </div>
-                </div>
-              )}
-
-              {/* TAB 4: SURGICAL HISTORY & DEVICES */}
-              {clinicalTab === "history" && (
-                <div className="space-y-5">
-                  {/* Implanted Devices */}
-                  <div className="bg-slate-900 border border-slate-800 rounded-2xl p-5 space-y-3">
-                    <div className="flex items-center justify-between">
-                      <h3 className="text-xs font-bold uppercase tracking-wider text-slate-300 flex items-center gap-2">
-                        <span>⚡</span> Implanted Devices & Prosthetics
-                      </h3>
-                      <span className="text-[10px] font-bold bg-amber-950 text-amber-300 border border-amber-800 px-2 py-0.5 rounded">
-                        MRI PROTOCOL CHECK
-                      </span>
-                    </div>
-
                     {patientData.devices && patientData.devices.length > 0 ? (
-                      <div className="space-y-2">
-                        {patientData.devices.map((d, idx) => (
-                          <div key={idx} className="bg-slate-950 p-3.5 rounded-xl border border-amber-900/50 flex items-center justify-between">
-                            <div>
-                              <div className="font-bold text-amber-300 text-sm">{d.name || d.device_name}</div>
-                              {d.model_number && <div className="text-xs text-slate-400">Model: {d.model_number}</div>}
-                            </div>
-                            <span className="text-xs font-bold text-amber-400 bg-amber-950 px-2.5 py-1 rounded border border-amber-800">
-                              Magnetic Hazard Check
-                            </span>
-                          </div>
-                        ))}
-                      </div>
+                      patientData.devices.map((d, idx) => (
+                        <div key={idx} className="p-3 bg-amber-50/50 border border-amber-200 rounded-lg text-xs space-y-1">
+                          <div className="font-bold text-slate-900">{d.name || d.device_name}</div>
+                          {d.model_number && <div className="text-slate-600">Model: {d.model_number}</div>}
+                        </div>
+                      ))
                     ) : (
-                      <p className="text-xs text-slate-400 bg-slate-950 p-3 rounded-xl">No implanted prosthetics or devices documented.</p>
+                      <p className="text-xs text-slate-500 p-3 bg-slate-50 rounded-lg">No implanted devices recorded.</p>
                     )}
                   </div>
 
-                  {/* Past Surgeries */}
-                  <div className="bg-slate-900 border border-slate-800 rounded-2xl p-5 space-y-3">
-                    <h3 className="text-xs font-bold uppercase tracking-wider text-slate-300 flex items-center gap-2">
-                      <span>🏥</span> Operative & Surgical History
+                  {/* Surgeries */}
+                  <div className="bg-white border border-slate-200 rounded-xl p-5 space-y-3 shadow-xs">
+                    <h3 className="font-bold text-xs uppercase tracking-wider text-slate-700">
+                      🏥 Past Operative Procedures
                     </h3>
 
                     {patientData.surgeries && patientData.surgeries.length > 0 ? (
-                      <div className="space-y-2">
-                        {patientData.surgeries.map((s, idx) => (
-                          <div key={idx} className="bg-slate-950 p-3.5 rounded-xl border border-slate-800 flex items-center justify-between">
-                            <div>
-                              <div className="font-bold text-white text-sm">{s.procedure || s.surgery_name}</div>
-                              <div className="text-xs text-slate-400">
-                                {s.surgery_date && `Date: ${s.surgery_date} • `}
-                                {s.hospital_name || "Tertiary Hospital"}
-                              </div>
-                            </div>
-                            <span className="text-xs bg-slate-900 text-slate-400 border border-slate-800 px-2 py-0.5 rounded">
-                              Documented
-                            </span>
+                      patientData.surgeries.map((s, idx) => (
+                        <div key={idx} className="p-3 bg-slate-50 border border-slate-200 rounded-lg text-xs space-y-1">
+                          <div className="font-bold text-slate-900">{s.procedure || s.surgery_name}</div>
+                          <div className="text-slate-500">
+                            {s.surgery_date && `Date: ${s.surgery_date} • `}
+                            {s.hospital_name || "Hospital Facility"}
                           </div>
-                        ))}
-                      </div>
+                        </div>
+                      ))
                     ) : (
-                      <p className="text-xs text-slate-400 bg-slate-950 p-3 rounded-xl">No prior surgical history on record.</p>
+                      <p className="text-xs text-slate-500 p-3 bg-slate-50 rounded-lg">No surgical records found.</p>
                     )}
                   </div>
                 </div>
               )}
 
-              {/* TAB 5: AUDIT TRAIL */}
+              {/* TAB 5: AUDIT */}
               {clinicalTab === "audit" && (
-                <div className="bg-slate-900 border border-slate-800 rounded-2xl p-5 space-y-3">
-                  <h3 className="text-xs font-bold uppercase tracking-wider text-slate-300 flex items-center gap-2">
-                    <span>🛡️</span> Forensic Access & Security Chain
-                  </h3>
-                  <div className="bg-slate-950 p-4 rounded-xl border border-slate-800 text-xs space-y-2 text-slate-400">
+                <div className="bg-white border border-slate-200 rounded-xl p-5 space-y-3 shadow-xs text-xs">
+                  <h3 className="font-bold text-xs uppercase tracking-wider text-slate-700">Forensic Access Record</h3>
+                  <div className="p-4 bg-slate-50 border border-slate-200 rounded-lg space-y-2 text-slate-600">
                     <div className="flex justify-between">
                       <span>Accessing Facility:</span>
-                      <strong className="text-white">{hospitalSession?.name}</strong>
+                      <strong className="text-slate-900">{hospitalSession.name}</strong>
                     </div>
                     <div className="flex justify-between">
-                      <span>Hospital Accreditation ID:</span>
-                      <strong className="text-teal-400 font-mono">{hospitalSession?.hospital_id}</strong>
+                      <span>Accreditation ID:</span>
+                      <strong className="font-mono text-slate-900">{hospitalSession.hospital_id}</strong>
                     </div>
                     <div className="flex justify-between">
                       <span>Attending Staff:</span>
-                      <strong className="text-white">{staffSession?.doctor_name} ({staffSession?.doctor_id})</strong>
+                      <strong className="text-slate-900">{staffSession.doctor_name}</strong>
                     </div>
                     <div className="flex justify-between">
-                      <span>Security Clearance:</span>
-                      <strong className="text-emerald-400">Red Tier (Full Clinical & Surgical Record)</strong>
+                      <span>Access Tier:</span>
+                      <strong className="text-emerald-700">Red Tier (Full Clinical & Surgical Record)</strong>
                     </div>
                     <div className="flex justify-between">
-                      <span>Session Timestamp:</span>
-                      <span className="font-mono text-slate-300">{new Date().toLocaleString()}</span>
+                      <span>Audit Timestamp:</span>
+                      <span className="font-mono text-slate-700">{new Date().toLocaleString()}</span>
                     </div>
                   </div>
                 </div>
               )}
             </div>
+          ) : null}
+
+          {/* WARD / RECENT ADMISSIONS TABLE SECTION */}
+          {navSection === "ward_patients" && (
+            <div className="bg-white border border-slate-200 rounded-xl p-5 shadow-xs space-y-4">
+              <h3 className="font-bold text-sm text-slate-900">Ward Admissions (Current Shift)</h3>
+              <table className="w-full text-left text-xs">
+                <thead className="bg-slate-50 text-slate-600 border-b border-slate-200 font-bold uppercase text-[10px]">
+                  <tr>
+                    <th className="py-2.5 px-3">Patient Name & PRANA ID</th>
+                    <th className="py-2.5 px-3">Age / Gender</th>
+                    <th className="py-2.5 px-3">Blood Group</th>
+                    <th className="py-2.5 px-3">Admission Status</th>
+                    <th className="py-2.5 px-3 text-right">Action</th>
+                  </tr>
+                </thead>
+                <tbody className="divide-y divide-slate-100">
+                  {recentPatients.map((p, idx) => (
+                    <tr key={idx} className="hover:bg-slate-50 transition">
+                      <td className="py-3 px-3">
+                        <div className="font-bold text-slate-800">{p.name}</div>
+                        <span className="font-mono text-[11px] text-teal-700 font-medium">{p.pid}</span>
+                      </td>
+                      <td className="py-3 px-3 text-slate-600">{p.age} Yrs</td>
+                      <td className="py-3 px-3 font-bold text-red-700">{p.blood}</td>
+                      <td className="py-3 px-3">
+                        <span className="text-[10px] font-bold px-2 py-0.5 rounded bg-slate-100 text-slate-700 border border-slate-200">
+                          {p.status}
+                        </span>
+                      </td>
+                      <td className="py-3 px-3 text-right">
+                        <button
+                          onClick={() => { setSearchPid(p.pid); performSearch(p.pid); setNavSection("patient_lookup"); }}
+                          className="text-xs font-bold text-teal-700 hover:text-teal-800 underline"
+                        >
+                          Load Record →
+                        </button>
+                      </td>
+                    </tr>
+                  ))}
+                </tbody>
+              </table>
+            </div>
           )}
-        </div>
+        </main>
       </div>
     </div>
   );
