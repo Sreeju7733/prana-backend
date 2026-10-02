@@ -1,5 +1,5 @@
 import { NextRequest, NextResponse } from 'next/server';
-import { supabase, verifyToken, signToken } from '@/lib/auth';
+import { supabase, verifyToken } from '@/lib/auth';
 import { ed25519 } from '@noble/curves/ed25519.js';
 import { randomBytes } from '@noble/curves/utils.js';
 import * as crypto from 'crypto';

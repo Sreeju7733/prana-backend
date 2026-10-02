@@ -16,6 +16,8 @@ import { base45Encode } from './base45';
 import { type QrHeader, buildQrHeader } from './base45';
 import * as crypto from 'crypto';
 
+export type { QrHeader };
+
 // Key types
 export interface ResponderKeyPair {
   privateKey: Uint8Array;  // 32 bytes
