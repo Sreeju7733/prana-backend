@@ -31,7 +31,7 @@ export async function GET(req: NextRequest) {
     // Sign the list
     const privateKey = Buffer.from(signingPrivHex, 'hex');
     const payload = JSON.stringify(list);
-    const signature = ed25519.sign(payload, privateKey);
+    const signature = ed25519.sign(new TextEncoder().encode(payload), privateKey);
 
     return NextResponse.json({
       success: true,
