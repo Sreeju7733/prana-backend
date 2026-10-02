@@ -56,22 +56,32 @@ export default function Home() {
             </span>
             <span className="text-xs bg-zinc-800 text-zinc-400 px-2 py-0.5 rounded-full font-mono">v1.0.0</span>
           </div>
-          <div className="flex items-center gap-4 text-sm">
+          <div className="flex items-center gap-3 text-sm">
+            <Link
+              href="/hospital"
+              className="bg-cyan-950 hover:bg-cyan-900 border border-cyan-700/60 text-cyan-300 font-semibold px-3 py-1.5 rounded-lg transition-colors flex items-center gap-1.5"
+            >
+              <span>🚑</span> Hospital Paramedic
+            </Link>
+            <Link
+              href="/admin"
+              className="bg-purple-950 hover:bg-purple-900 border border-purple-700/60 text-purple-300 font-semibold px-3 py-1.5 rounded-lg transition-colors flex items-center gap-1.5"
+            >
+              <span>🛡️</span> Superadmin
+            </Link>
+            <Link
+              href="/scan"
+              className="text-zinc-400 hover:text-emerald-400 transition-colors flex items-center gap-1.5"
+            >
+              <span>📷</span> Scanner
+            </Link>
             <a
               href="/api/health/supabase"
               target="_blank"
-              className="text-zinc-400 hover:text-emerald-400 transition-colors flex items-center gap-1.5"
+              className="text-zinc-400 hover:text-emerald-400 transition-colors hidden sm:flex items-center gap-1.5"
             >
               <span className="w-2 h-2 rounded-full bg-emerald-500"></span>
-              Supabase Status
-            </a>
-            <a
-              href="https://github.com"
-              target="_blank"
-              rel="noreferrer"
-              className="bg-emerald-600 hover:bg-emerald-500 text-zinc-950 font-medium px-4 py-1.5 rounded-lg transition-colors"
-            >
-              API Docs (Markdown)
+              DB Status
             </a>
           </div>
         </div>
