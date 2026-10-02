@@ -1,20 +1,28 @@
 import { NextRequest, NextResponse } from 'next/server';
-import { supabase, verifyHospitalToken } from '@/lib/auth';
+import { supabase, verifyAdminToken, verifyHospitalToken } from '@/lib/auth';
 
 // GET /api/admin/audit-logs - Query scan events and access records
 export async function GET(req: NextRequest) {
   try {
-    let callerClaims;
+    let isSuperAdmin = false;
     try {
-      callerClaims = verifyHospitalToken(req);
+      verifyAdminToken(req);
+      isSuperAdmin = true;
     } catch {
-      return NextResponse.json({ success: false, error: 'Unauthorized: Authentication required.' }, { status: 401 });
+      // Try hospital token if not superadmin
+      try {
+        const claims = verifyHospitalToken(req);
+        if (claims.role === 'superadmin') isSuperAdmin = true;
+      } catch {
+        return NextResponse.json({ success: false, error: 'Unauthorized: Authentication required.' }, { status: 401 });
+      }
     }
 
     const { searchParams } = new URL(req.url);
     const limit = parseInt(searchParams.get('limit') || '50', 10);
     const pranaId = searchParams.get('prana_id');
     const hospitalId = searchParams.get('hospital_id');
+    const tier = searchParams.get('tier');
 
     let query = supabase
       .from('scan_logs')
@@ -22,12 +30,12 @@ export async function GET(req: NextRequest) {
       .order('scanned_at', { ascending: false })
       .limit(limit);
 
-    // If hospital facility token, scope exclusively to records opened by this hospital
-    if (callerClaims.role === 'hospital_facility') {
-      const hospId = callerClaims.hospital_id;
-      query = query.or(`hospital_id.eq.${hospId},responder_org.ilike.%${hospId}%,responder_org.ilike.%${callerClaims.hospital_name}%`);
-    } else if (hospitalId) {
+    if (hospitalId) {
       query = query.eq('hospital_id', hospitalId);
+    }
+
+    if (tier) {
+      query = query.ilike('access_tier', `%${tier}%`);
     }
 
     if (pranaId) {
@@ -40,9 +48,22 @@ export async function GET(req: NextRequest) {
       return NextResponse.json({ success: false, error: error.message }, { status: 500 });
     }
 
+    // Enrich logs with display labels
+    const enriched = (logs || []).map(l => ({
+      id: l.id,
+      prana_id: l.prana_id,
+      scanned_at: l.scanned_at,
+      access_tier: (l.access_tier || 'yellow').toUpperCase(),
+      actor: l.responder_code ? `Paramedic (${l.responder_code})` : (l.doctor_id ? `Doctor (${l.doctor_id})` : 'Paramedic Unit'),
+      hospital_id: l.hospital_id || 'EMS Field Unit',
+      scanner_type: l.device_type || 'Mobile PWA',
+      reason: l.denial_reason || 'Emergency medical triage scan',
+      access_granted: l.access_granted !== false,
+    }));
+
     return NextResponse.json({
       success: true,
-      data: logs || []
+      data: enriched
     }, { status: 200 });
 
   } catch (err: unknown) {
