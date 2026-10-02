@@ -101,7 +101,7 @@ interface PatientSearchResponse {
 
 export default function HospitalEHRDashboard() {
   // Sidenav navigation section
-  const [navSection, setNavSection] = useState<"patient_lookup" | "paramedics" | "admissions" | "facility_settings">("patient_lookup");
+  const [navSection, setNavSection] = useState<"patient_lookup" | "insurance_desk" | "paramedics" | "admissions" | "facility_settings">("patient_lookup");
 
   // Facility & Session
   const [hospitalSession, setHospitalSession] = useState<HospitalSession>({
@@ -132,6 +132,20 @@ export default function HospitalEHRDashboard() {
 
   // Active EHR Clinical Tab
   const [clinicalTab, setClinicalTab] = useState<"triage" | "medications" | "vitals" | "history" | "insurance" | "audit">("triage");
+
+  // Insurance & Pre-Auth Claim State
+  const [isVerifyingInsurance, setIsVerifyingInsurance] = useState(false);
+  const [insuranceClaimResult, setInsuranceClaimResult] = useState<{
+    claim_reference: string;
+    verification_status: string;
+    approved_initial_limit: number;
+    tpa_approval_code: string;
+    instructions: string;
+    insurer: string;
+    policy_number: string;
+    adjudicated_at: string;
+  } | null>(null);
+  const [customClaimAmount, setCustomClaimAmount] = useState("150000");
 
   // Paramedic Management State for THIS Hospital
   const [hospitalParamedics, setHospitalParamedics] = useState<Paramedic[]>([]);
@@ -271,7 +285,56 @@ export default function HospitalEHRDashboard() {
     }
   };
 
+  // Verify Cashless Insurance Pre-Authorization
+  const handleVerifyInsurance = async () => {
+    if (!patientData) {
+      showToast("Please search for a patient first", "error");
+      return;
+    }
+    setIsVerifyingInsurance(true);
+    try {
+      const res = await fetch("/api/hospitals/insurance/verify", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({
+          prana_id: patientData.patient.prana_id || patientData.patient.phone,
+          provider_name: patientData.patient.insurance_provider,
+          policy_number: patientData.patient.policy_number,
+          claim_amount: Number(customClaimAmount) || 200000,
+          admission_type: "Emergency / Trauma Inpatient",
+          hospital_id: hospitalSession.hospital_id,
+        }),
+      });
+      const data = await res.json();
+      if (!res.ok || !data.success) {
+        throw new Error(data.error || "Pre-authorization check failed");
+      }
+      setInsuranceClaimResult(data);
+      showToast(`Pre-authorization approved! Claim Ref: ${data.claim_reference}`);
+    } catch (err: unknown) {
+      showToast(err instanceof Error ? err.message : "Failed to verify insurance", "error");
+    } finally {
+      setIsVerifyingInsurance(false);
+    }
+  };
+
   useEffect(() => {
+    // Check if hospital staff session exists in localStorage
+    try {
+      const storedHosp = localStorage.getItem("prana_hosp_session");
+      const storedStaff = localStorage.getItem("prana_staff_session");
+      if (storedHosp) {
+        const hospObj = JSON.parse(storedHosp);
+        setHospitalSession(hospObj);
+      }
+      if (storedStaff) {
+        const staffObj = JSON.parse(storedStaff);
+        setStaffSession(staffObj);
+      }
+    } catch {
+      // fallback to defaults
+    }
+
     performSearch("PRAN-ba42c5c2");
     fetchHospitalParamedics();
   }, []);
@@ -330,6 +393,21 @@ export default function HospitalEHRDashboard() {
             </button>
 
             <button
+              onClick={() => {
+                setNavSection("insurance_desk");
+                setClinicalTab("insurance");
+              }}
+              className={`w-full flex items-center gap-3 px-3 py-2.5 rounded-lg text-xs font-semibold text-left transition ${
+                navSection === "insurance_desk"
+                  ? "bg-teal-50 text-teal-800 border border-teal-200 shadow-sm"
+                  : "text-slate-600 hover:bg-slate-100 hover:text-slate-900"
+              }`}
+            >
+              <span className="text-base">💳</span>
+              <span>Insurance & TPA Claims</span>
+            </button>
+
+            <button
               onClick={() => { setNavSection("paramedics"); fetchHospitalParamedics(); }}
               className={`w-full flex items-center justify-between px-3 py-2.5 rounded-lg text-xs font-semibold text-left transition ${
                 navSection === "paramedics"
@@ -374,14 +452,23 @@ export default function HospitalEHRDashboard() {
 
         {/* Sidenav Footer & Links */}
         <div className="p-4 border-t border-slate-100 space-y-3">
-          <div className="flex items-center gap-2.5">
-            <div className="w-8 h-8 rounded-full bg-slate-200 flex items-center justify-center font-bold text-xs text-slate-700">
-              Dr
+          <div className="flex items-center justify-between">
+            <div className="flex items-center gap-2.5 truncate">
+              <div className="w-8 h-8 rounded-full bg-teal-100 text-teal-800 font-bold text-xs flex items-center justify-center shrink-0">
+                Dr
+              </div>
+              <div className="text-xs truncate">
+                <div className="font-bold text-slate-800 truncate">{staffSession.doctor_name}</div>
+                <div className="text-[10px] text-slate-500 font-mono truncate">{staffSession.doctor_id}</div>
+              </div>
             </div>
-            <div className="text-xs truncate">
-              <div className="font-bold text-slate-800 truncate">{staffSession.doctor_name}</div>
-              <div className="text-[10px] text-slate-500 font-mono truncate">{staffSession.doctor_id}</div>
-            </div>
+            <Link
+              href="/hospitals/login"
+              title="Sign Out to Hospital Login"
+              className="text-xs text-red-600 hover:text-red-700 font-semibold px-2 py-1 rounded hover:bg-red-50 transition shrink-0"
+            >
+              Logout 🚪
+            </Link>
           </div>
 
           <div className="pt-2 border-t border-slate-100 flex items-center justify-between text-[11px] font-semibold">
@@ -492,8 +579,8 @@ export default function HospitalEHRDashboard() {
         {/* Content Body */}
         <main className="flex-1 p-6 overflow-y-auto space-y-6">
 
-          {/* ═════════ SECTION 1: PATIENT LOOKUP (BY PRANA ID OR PHONE NUMBER) ═════════ */}
-          {navSection === "patient_lookup" && (
+          {/* ═════════ SECTION 1: PATIENT LOOKUP (BY PRANA ID OR PHONE NUMBER) & INSURANCE DESK ═════════ */}
+          {(navSection === "patient_lookup" || navSection === "insurance_desk") && (
             <div className="space-y-6">
               {/* SEARCH & INTAKE BAR */}
               <div className="bg-white border border-slate-200 rounded-xl p-5 shadow-xs">
@@ -802,30 +889,158 @@ export default function HospitalEHRDashboard() {
                     </div>
                   )}
 
-                  {/* TAB 5: INSURANCE DETAILS */}
+                  {/* TAB 5: INSURANCE DETAILS & CASHLESS PRE-AUTH */}
                   {clinicalTab === "insurance" && (
-                    <div className="bg-white border border-slate-200 rounded-xl p-5 shadow-xs space-y-4">
-                      <h3 className="font-bold text-xs uppercase tracking-wider text-slate-700">
-                        Insurance Coverage & TPA Claim Information
-                      </h3>
-                      <div className="p-5 bg-slate-50 border border-slate-200 rounded-xl space-y-3 text-xs">
-                        <div className="flex justify-between">
-                          <span className="text-slate-500">Primary Insurer:</span>
-                          <strong className="text-slate-900 text-sm">{patientData.patient.insurance_provider || "Star Health & Allied Insurance"}</strong>
+                    <div className="bg-white border border-slate-200 rounded-xl p-5 shadow-xs space-y-6">
+                      <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-3 border-b border-slate-100 pb-4">
+                        <div>
+                          <h3 className="font-bold text-sm text-slate-900 flex items-center gap-2">
+                            <span>💳</span> Insurance Coverage & Cashless TPA Desk
+                          </h3>
+                          <p className="text-xs text-slate-500 mt-0.5">
+                            Verify policy status, co-pay waiver, and process instant emergency cashless pre-authorization.
+                          </p>
                         </div>
-                        <div className="flex justify-between">
-                          <span className="text-slate-500">Policy / Member ID:</span>
-                          <strong className="font-mono text-teal-800 text-sm">{patientData.patient.policy_number || "POL-99210-PRANA"}</strong>
+                        <button
+                          onClick={handleVerifyInsurance}
+                          disabled={isVerifyingInsurance}
+                          className="bg-teal-600 hover:bg-teal-700 text-white font-bold text-xs px-4 py-2 rounded-lg transition shadow-xs flex items-center gap-2 shrink-0 self-start sm:self-auto"
+                        >
+                          {isVerifyingInsurance ? (
+                            <>
+                              <span className="animate-spin text-sm">⏳</span>
+                              <span>Pinging TPA Gateway...</span>
+                            </>
+                          ) : (
+                            <>
+                              <span>⚡</span>
+                              <span>Process Cashless Pre-Auth</span>
+                            </>
+                          )}
+                        </button>
+                      </div>
+
+                      {/* Policy & Coverage Snapshot */}
+                      <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                        <div className="p-4 bg-slate-50 border border-slate-200 rounded-xl space-y-3 text-xs">
+                          <h4 className="font-bold text-[11px] uppercase tracking-wider text-slate-500">Policy Particulars</h4>
+                          <div className="flex justify-between border-b border-slate-200 pb-2">
+                            <span className="text-slate-500">Primary Insurer:</span>
+                            <strong className="text-slate-900">{patientData.patient.insurance_provider || "Star Health & Allied Insurance"}</strong>
+                          </div>
+                          <div className="flex justify-between border-b border-slate-200 pb-2">
+                            <span className="text-slate-500">Policy / Member ID:</span>
+                            <strong className="font-mono text-teal-800">{patientData.patient.policy_number || "POL-99210-PRANA"}</strong>
+                          </div>
+                          <div className="flex justify-between border-b border-slate-200 pb-2">
+                            <span className="text-slate-500">Insured Patient:</span>
+                            <span className="font-bold text-slate-800">{patientData.patient.full_name}</span>
+                          </div>
+                          <div className="flex justify-between">
+                            <span className="text-slate-500">Registered Mobile:</span>
+                            <span className="font-mono text-slate-800">{patientData.patient.phone}</span>
+                          </div>
                         </div>
-                        <div className="flex justify-between">
-                          <span className="text-slate-500">Cashless TPA Desk:</span>
-                          <span className="font-mono text-slate-800">{patientData.patient.tpa_contact || "1800-425-2255"}</span>
-                        </div>
-                        <div className="flex justify-between">
-                          <span className="text-slate-500">Pre-authorization Status:</span>
-                          <span className="font-bold text-emerald-700 bg-emerald-50 border border-emerald-200 px-2 py-0.5 rounded">Eligible for Emergency Admission</span>
+
+                        <div className="p-4 bg-slate-50 border border-slate-200 rounded-xl space-y-3 text-xs">
+                          <h4 className="font-bold text-[11px] uppercase tracking-wider text-slate-500">Hospital Empanelment & TPA</h4>
+                          <div className="flex justify-between border-b border-slate-200 pb-2">
+                            <span className="text-slate-500">TPA Helpdesk Toll-Free:</span>
+                            <strong className="font-mono text-slate-900">{patientData.patient.tpa_contact || "1800-425-2255"}</strong>
+                          </div>
+                          <div className="flex justify-between border-b border-slate-200 pb-2">
+                            <span className="text-slate-500">Network Tier:</span>
+                            <span className="font-bold text-emerald-700 bg-emerald-50 border border-emerald-200 px-2 py-0.5 rounded text-[10px]">
+                              Tier-A Empaneled Partner
+                            </span>
+                          </div>
+                          <div className="flex justify-between border-b border-slate-200 pb-2">
+                            <span className="text-slate-500">Co-Pay Requirement:</span>
+                            <strong className="text-slate-900">0% (Emergency Resuscitation Waiver)</strong>
+                          </div>
+                          <div className="flex justify-between">
+                            <span className="text-slate-500">Active Hospital:</span>
+                            <span className="font-bold text-slate-800">{hospitalSession.hospital_id}</span>
+                          </div>
                         </div>
                       </div>
+
+                      {/* Cashless Claim Amount Input */}
+                      <div className="p-4 bg-teal-50/50 border border-teal-200 rounded-xl flex flex-col sm:flex-row items-center justify-between gap-4 text-xs">
+                        <div className="space-y-0.5">
+                          <span className="font-bold text-slate-900">Initial Estimated Pre-Auth Admission Amount (₹)</span>
+                          <p className="text-slate-500 text-[11px]">Specify estimated emergency stabilization & ICU deposit for automated pre-clearance.</p>
+                        </div>
+                        <div className="flex items-center gap-2">
+                          <div className="relative">
+                            <span className="absolute left-3 top-2 text-slate-500 font-bold">₹</span>
+                            <input
+                              type="number"
+                              value={customClaimAmount}
+                              onChange={(e) => setCustomClaimAmount(e.target.value)}
+                              className="pl-7 pr-3 py-1.5 bg-white border border-teal-300 rounded-lg text-xs font-mono font-bold w-36 outline-none focus:ring-1 focus:ring-teal-600"
+                              placeholder="150000"
+                            />
+                          </div>
+                          <button
+                            onClick={handleVerifyInsurance}
+                            disabled={isVerifyingInsurance}
+                            className="bg-teal-700 hover:bg-teal-800 text-white font-bold px-3 py-1.5 rounded-lg text-xs transition"
+                          >
+                            Update & Submit
+                          </button>
+                        </div>
+                      </div>
+
+                      {/* Active Pre-Authorization Certificate */}
+                      {insuranceClaimResult ? (
+                        <div className="p-5 bg-emerald-50/70 border border-emerald-300 rounded-xl space-y-3 text-xs animate-fade-in">
+                          <div className="flex items-center justify-between border-b border-emerald-200 pb-2.5">
+                            <div className="flex items-center gap-2">
+                              <span className="text-lg">✅</span>
+                              <span className="font-bold text-emerald-900 uppercase tracking-wide text-xs">
+                                Cashless Pre-Authorization Approved
+                              </span>
+                            </div>
+                            <span className="font-mono text-xs font-bold text-emerald-800 bg-emerald-100 px-2 py-0.5 rounded">
+                              Ref: {insuranceClaimResult.claim_reference}
+                            </span>
+                          </div>
+
+                          <div className="grid grid-cols-1 sm:grid-cols-3 gap-3 pt-1">
+                            <div className="bg-white p-3 rounded-lg border border-emerald-200 text-center">
+                              <span className="text-[10px] uppercase font-bold text-slate-500 block">Initial Approved Cap</span>
+                              <div className="text-xl font-black text-emerald-700 mt-0.5">
+                                ₹{insuranceClaimResult.approved_initial_limit.toLocaleString("en-IN")}
+                              </div>
+                            </div>
+                            <div className="bg-white p-3 rounded-lg border border-emerald-200 text-center">
+                              <span className="text-[10px] uppercase font-bold text-slate-500 block">TPA Authorization Code</span>
+                              <div className="text-base font-mono font-bold text-slate-800 mt-1">
+                                {insuranceClaimResult.tpa_approval_code}
+                              </div>
+                            </div>
+                            <div className="bg-white p-3 rounded-lg border border-emerald-200 text-center">
+                              <span className="text-[10px] uppercase font-bold text-slate-500 block">Adjudication Time</span>
+                              <div className="text-xs font-mono text-slate-600 mt-1">
+                                {new Date(insuranceClaimResult.adjudicated_at).toLocaleTimeString()}
+                              </div>
+                            </div>
+                          </div>
+
+                          <div className="p-3 bg-emerald-100/60 rounded-lg text-[11px] text-emerald-950 font-medium flex items-start gap-2">
+                            <span>ℹ️</span>
+                            <span>{insuranceClaimResult.instructions}</span>
+                          </div>
+                        </div>
+                      ) : (
+                        <div className="p-4 bg-slate-50 border border-dashed border-slate-300 rounded-xl text-center space-y-1">
+                          <p className="text-xs font-bold text-slate-700">Pre-Authorization Pending Submission</p>
+                          <p className="text-[11px] text-slate-500">
+                            Click &quot;Process Cashless Pre-Auth&quot; above to instantaneously trigger verification against the TPA claims clearinghouse.
+                          </p>
+                        </div>
+                      )}
                     </div>
                   )}
 
