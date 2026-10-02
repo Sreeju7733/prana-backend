@@ -8,8 +8,8 @@ export default function HospitalLoginPage() {
   const router = useRouter();
 
   const [hospitalId, setHospitalId] = useState("HOSP-AIIMS-01");
-  const [doctorId, setDoctorId] = useState("DOC-9081");
-  const [doctorName, setDoctorName] = useState("Dr. Arvind Swaminathan, MD");
+  const [doctorId, setDoctorId] = useState("DOC-STAFF-01");
+  const [doctorName, setDoctorName] = useState("Attending Duty Physician");
   const [department, setDepartment] = useState("Emergency Medicine & Trauma Resuscitation");
   const [pin, setPin] = useState("1234");
   const [isLoading, setIsLoading] = useState(false);

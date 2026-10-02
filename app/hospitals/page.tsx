@@ -114,15 +114,15 @@ export default function HospitalEHRDashboard() {
   });
 
   const [staffSession, setStaffSession] = useState<StaffSession>({
-    doctor_id: "DOC-9081",
-    doctor_name: "Dr. Arvind Swaminathan, MD",
+    doctor_id: "DOC-STATION-01",
+    doctor_name: "Attending Duty Physician",
     department: "Emergency Medicine & Trauma Resuscitation",
     role: "Attending Emergency Physician",
   });
 
   const [showSwitchFacility, setShowSwitchFacility] = useState(false);
   const [facilitySelect, setFacilitySelect] = useState("HOSP-AIIMS-01");
-  const [doctorNameInput, setDoctorNameInput] = useState("Dr. Arvind Swaminathan, MD");
+  const [doctorNameInput, setDoctorNameInput] = useState("Attending Duty Physician");
 
   // Patient Search (By PRANA ID or Phone Number)
   const [searchPid, setSearchPid] = useState("PRAN-ba42c5c2");
@@ -455,11 +455,11 @@ export default function HospitalEHRDashboard() {
           <div className="flex items-center justify-between">
             <div className="flex items-center gap-2.5 truncate">
               <div className="w-8 h-8 rounded-full bg-teal-100 text-teal-800 font-bold text-xs flex items-center justify-center shrink-0">
-                Dr
+                MD
               </div>
               <div className="text-xs truncate">
-                <div className="font-bold text-slate-800 truncate">{staffSession.doctor_name}</div>
-                <div className="text-[10px] text-slate-500 font-mono truncate">{staffSession.doctor_id}</div>
+                <div className="font-bold text-slate-800 truncate">{staffSession.doctor_name || "Duty Physician"}</div>
+                <div className="text-[10px] text-slate-500 font-mono truncate">{staffSession.doctor_id || "Active Station"}</div>
               </div>
             </div>
             <Link
