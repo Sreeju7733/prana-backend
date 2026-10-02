@@ -779,7 +779,7 @@ export default function ProfessionalSuperAdminDashboard() {
                       </td>
                       <td className="py-3 px-3 text-right">
                         <Link
-                          href="/hospitals"
+                          href="/hospitals/login"
                           className="text-xs font-bold text-indigo-700 hover:underline"
                         >
                           View in EHR →

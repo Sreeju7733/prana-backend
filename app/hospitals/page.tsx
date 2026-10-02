@@ -148,7 +148,7 @@ export default function HospitalEHRDashboard() {
   });
 
   // Patient Search State
-  const [searchPid, setSearchPid] = useState("PRAN-ba42c5c2");
+  const [searchPid, setSearchPid] = useState("");
   const [isSearching, setIsSearching] = useState(false);
   const [patientData, setPatientData] = useState<PatientSearchResponse | null>(null);
   const [searchError, setSearchError] = useState<string | null>(null);
@@ -512,7 +512,6 @@ export default function HospitalEHRDashboard() {
       const hospObj = JSON.parse(storedHosp);
       setHospitalSession(hospObj);
       setIsAuthenticated(true);
-      performSearch("PRAN-ba42c5c2");
       fetchHospitalParamedics();
       fetchIncomingPatients();
     } catch {
