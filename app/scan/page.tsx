@@ -50,6 +50,10 @@ export default function QRScannerPage() {
   const [error, setError] = useState<string | null>(null);
   const [scannerActive, setScannerActive] = useState(true);
 
+  useEffect(() => {
+    document.title = "Universal Emergency Medical Card Scanner • PRANA";
+  }, []);
+
   const scannerRef = useRef<Html5QrcodeScanner | null>(null);
 
   const handleDecryptPayload = useCallback((payload: string) => {

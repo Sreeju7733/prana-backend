@@ -17,6 +17,10 @@ interface HospitalItem {
 export default function HospitalLoginPage() {
   const router = useRouter();
 
+  useEffect(() => {
+    document.title = "Hospital Clinical Login Gateway • PRANA EHR";
+  }, []);
+
   const [hospitalsList, setHospitalsList] = useState<HospitalItem[]>([
     {
       id: "4deb47bf-74ce-40d0-a36d-0fa174f4a1f5",

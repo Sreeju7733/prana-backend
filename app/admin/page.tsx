@@ -2,6 +2,7 @@
 
 import React, { useState, useEffect } from "react";
 import Link from "next/link";
+import { useRouter } from "next/navigation";
 
 interface Hospital {
   id: string;
@@ -249,20 +250,30 @@ export default function ProfessionalSuperAdminDashboard() {
     setTimeout(() => setToast(null), 3500);
   };
 
-  // Auth Initialization
+  const router = useRouter();
+
+  // Auth Initialization & Dynamic Tab Title
+  useEffect(() => {
+    const navTitles: Record<NavSection, string> = {
+      overview: "Overview",
+      hospitals: "Hospitals Registry",
+      responders: "Paramedic Responders",
+      patients: "Universal Patients",
+      card_orders: "Card Dispatch Orders",
+      lost_cards: "Suspended & Lost Cards",
+      audit: "Forensic Audit Logs",
+      security: "Cryptographic Keys & Security",
+      settings: "Authority Settings",
+    };
+    document.title = `${navTitles[activeNav] || "Superadmin Console"} • PRANA National Authority`;
+  }, [activeNav]);
+
   useEffect(() => {
     const savedToken = localStorage.getItem("prana_admin_token");
     const savedEmail = localStorage.getItem("prana_admin_email");
     if (savedToken) {
       setAdminToken(savedToken);
       setAdminUser({ email: savedEmail || "admin@prana.health", name: "PRANA Admin" });
-    } else {
-      // Auto-set local superadmin demo session
-      const demoToken = "demo-superadmin-token";
-      localStorage.setItem("prana_admin_token", demoToken);
-      localStorage.setItem("prana_admin_email", "admin@prana.health");
-      setAdminToken(demoToken);
-      setAdminUser({ email: "admin@prana.health", name: "PRANA Admin" });
     }
     setAuthChecked(true);
   }, []);
@@ -282,6 +293,7 @@ export default function ProfessionalSuperAdminDashboard() {
       if (data.success && data.token) {
         localStorage.setItem("prana_admin_token", data.token);
         localStorage.setItem("prana_admin_email", data.admin.email);
+        localStorage.setItem("prana_admin_user", JSON.stringify(data.admin));
         setAdminToken(data.token);
         setAdminUser(data.admin);
         showToast("Signed in as Superadmin");
@@ -298,9 +310,11 @@ export default function ProfessionalSuperAdminDashboard() {
   const handleLogout = () => {
     localStorage.removeItem("prana_admin_token");
     localStorage.removeItem("prana_admin_email");
+    localStorage.removeItem("prana_admin_user");
     setAdminToken(null);
     setAdminUser(null);
     showToast("Superadmin session ended");
+    router.push("/admin/login");
   };
 
   // Centralized data loader
@@ -510,43 +524,44 @@ export default function ProfessionalSuperAdminDashboard() {
   // Superadmin Login Gate
   if (!adminToken) {
     return (
-      <div className="min-h-screen bg-slate-900 text-white flex items-center justify-center p-4 font-sans">
-        <div className="max-w-md w-full bg-slate-800 border border-slate-700 rounded-2xl p-8 shadow-2xl space-y-6">
+      <div className="min-h-screen bg-slate-50 text-slate-900 flex items-center justify-center p-4 font-sans selection:bg-indigo-600 selection:text-white antialiased">
+        <div className="max-w-md w-full bg-white border border-slate-200 rounded-2xl p-7 sm:p-9 shadow-sm space-y-6">
           <div className="text-center space-y-2">
-            <div className="w-12 h-12 bg-indigo-600 rounded-xl flex items-center justify-center mx-auto text-2xl shadow-md">
+            <div className="w-13 h-13 rounded-2xl bg-indigo-50 border border-indigo-200 text-indigo-700 flex items-center justify-center text-2xl mx-auto shadow-xs">
               🛡️
             </div>
-            <h1 className="text-xl font-bold tracking-tight text-white">PRANA Superadmin Console</h1>
-            <p className="text-xs text-slate-400">
-              Sign in with your national authority credentials to administer network infrastructure.
+            <h1 className="text-xl font-bold tracking-tight text-slate-900">PRANA Superadmin Console</h1>
+            <p className="text-xs text-slate-500">
+              Sign in with your national authority credentials to administer accredited hospitals, responders, and keys.
             </p>
           </div>
 
           {loginError && (
-            <div className="bg-red-500/10 border border-red-500/30 text-red-300 text-xs px-3 py-2 rounded-lg font-medium">
-              ⚠️ {loginError}
+            <div className="p-3 bg-red-50 border border-red-200 rounded-xl text-xs text-red-700 font-medium flex items-center gap-2">
+              <span>⚠️</span>
+              <span>{loginError}</span>
             </div>
           )}
 
           <form onSubmit={handleAdminLogin} className="space-y-4 text-xs">
             <div>
-              <label className="block text-slate-300 font-semibold mb-1">Administrator Email</label>
+              <label className="block text-slate-700 font-bold mb-1.5">Authority Email Address</label>
               <input
                 type="email"
                 value={loginEmail}
                 onChange={(e) => setLoginEmail(e.target.value)}
-                className="w-full bg-slate-950 border border-slate-700 rounded-lg px-3 py-2 text-white outline-none focus:border-indigo-500"
+                className="w-full bg-white border border-slate-300 focus:border-indigo-600 focus:ring-1 focus:ring-indigo-600 rounded-xl px-3.5 py-2.5 text-slate-900 placeholder:text-slate-400 font-mono text-xs outline-none transition"
                 required
               />
             </div>
 
             <div>
-              <label className="block text-slate-300 font-semibold mb-1">Password</label>
+              <label className="block text-slate-700 font-bold mb-1.5">Master Passphrase</label>
               <input
                 type="password"
                 value={loginPassword}
                 onChange={(e) => setLoginPassword(e.target.value)}
-                className="w-full bg-slate-950 border border-slate-700 rounded-lg px-3 py-2 text-white outline-none focus:border-indigo-500"
+                className="w-full bg-white border border-slate-300 focus:border-indigo-600 focus:ring-1 focus:ring-indigo-600 rounded-xl px-3.5 py-2.5 text-slate-900 placeholder:text-slate-400 font-mono text-xs outline-none transition"
                 required
               />
             </div>
@@ -554,16 +569,19 @@ export default function ProfessionalSuperAdminDashboard() {
             <button
               type="submit"
               disabled={isLoggingIn}
-              className="w-full bg-indigo-600 hover:bg-indigo-700 text-white font-bold py-2.5 rounded-lg transition shadow-md"
+              className="w-full bg-indigo-700 hover:bg-indigo-800 disabled:opacity-50 text-white font-bold py-3 rounded-xl transition shadow-xs flex items-center justify-center gap-2 cursor-pointer mt-2"
             >
-              {isLoggingIn ? "Verifying Credentials..." : "Authenticate as Superadmin"}
+              {isLoggingIn ? "Verifying Credentials..." : "Authenticate as Superadmin →"}
             </button>
           </form>
 
-          <div className="pt-2 border-t border-slate-700 text-center">
-            <span className="text-[11px] text-slate-500">
-              PRANA Secure Emergency Health Infrastructure • Authorized Personnel Only
-            </span>
+          <div className="pt-3 border-t border-slate-100 text-center space-y-1">
+            <div className="text-[11px] font-bold text-slate-700 flex items-center justify-center gap-1.5">
+              <span>🔒</span> Zero-Knowledge Patient Privacy Enforcement
+            </div>
+            <p className="text-[10px] text-slate-500 leading-normal">
+              Superadmin accounts have administrative authority over credentials and facilities, but are cryptographically air-gapped from patient clinical charts.
+            </p>
           </div>
         </div>
       </div>
@@ -571,7 +589,7 @@ export default function ProfessionalSuperAdminDashboard() {
   }
 
   return (
-    <div className="min-h-screen bg-slate-50 text-slate-900 flex font-sans selection:bg-indigo-600 selection:text-white antialiased">
+    <div className="h-screen bg-slate-50 text-slate-900 flex font-sans selection:bg-indigo-600 selection:text-white antialiased overflow-hidden">
       {/* Toast Alert */}
       {toast && (
         <div
@@ -586,11 +604,11 @@ export default function ProfessionalSuperAdminDashboard() {
         </div>
       )}
 
-      {/* ─── LEFT COLLAPSIBLE SIDENAV ─── */}
-      <aside className="w-64 bg-white border-r border-slate-200 flex flex-col justify-between shrink-0 shadow-sm">
+      {/* ─── LEFT FIXED SIDENAV (STATIONARY - NEVER SCROLLS) ─── */}
+      <aside className="w-64 bg-white border-r border-slate-200 flex flex-col justify-between shrink-0 shadow-sm h-screen sticky top-0 z-30 select-none">
         <div>
           {/* Logo Header */}
-          <div className="h-16 px-5 border-b border-slate-100 flex items-center gap-3">
+          <div className="h-16 px-5 border-b border-slate-100 flex items-center gap-3 shrink-0">
             <div className="w-9 h-9 rounded-lg bg-indigo-700 flex items-center justify-center text-white font-bold text-lg shadow-sm">
               🛡️
             </div>
@@ -600,7 +618,7 @@ export default function ProfessionalSuperAdminDashboard() {
                 Superadmin Console
               </div>
             </div>
-          </div>
+            </div>
 
           {/* Sidenav Navigation Items */}
           <nav className="p-3 space-y-1">
@@ -765,9 +783,9 @@ export default function ProfessionalSuperAdminDashboard() {
       </aside>
 
       {/* ─── MAIN WORKSPACE ─── */}
-      <div className="flex-1 flex flex-col min-w-0">
+      <div className="flex-1 flex flex-col min-w-0 h-screen overflow-hidden">
         {/* Top Navbar */}
-        <header className="h-16 bg-white border-b border-slate-200 px-6 flex items-center justify-between shadow-xs sticky top-0 z-20">
+        <header className="h-16 bg-white border-b border-slate-200 px-6 flex items-center justify-between shadow-xs sticky top-0 z-20 shrink-0">
           <div className="flex items-center gap-2">
             <span className="font-bold text-sm text-slate-800 capitalize">
               {activeNav.replace("_", " ")}

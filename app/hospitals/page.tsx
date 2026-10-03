@@ -52,10 +52,16 @@ interface IncomingPatient {
 interface AuditLogEntry {
   id: string;
   prana_id: string;
+  patient_name?: string;
+  patient_age?: number;
+  patient_blood_group?: string;
+  critical_allergy?: string;
   hospital_id: string;
   scanner_type: string;
-  responder_org: string;
-  accessed_data_summary: string;
+  responder_org?: string;
+  actor?: string;
+  reason?: string;
+  accessed_data_summary?: string;
   scanned_at: string;
 }
 
@@ -147,6 +153,20 @@ export default function HospitalEHRDashboard() {
     state: "Delhi",
   });
 
+  // Dynamic Document Title
+  useEffect(() => {
+    const titles: Record<typeof navSection, string> = {
+      patient_lookup: "Patient Lookup",
+      incoming_patients: "Incoming Ambulance Telemetry",
+      paramedics: "Paramedic Responders",
+      insurance_desk: "Insurance Claims Desk",
+      access_log: "Facility Access Logs",
+      settings: "Facility Configuration",
+    };
+    const hospPrefix = hospitalSession?.hospital_id || "Hospital";
+    document.title = `${titles[navSection] || "EHR"} • ${hospPrefix} | PRANA Health Network`;
+  }, [navSection, hospitalSession]);
+
   // Patient Search State
   const [searchPid, setSearchPid] = useState("");
   const [isSearching, setIsSearching] = useState(false);
@@ -156,7 +176,9 @@ export default function HospitalEHRDashboard() {
   // Break-Glass reason modal for phone number lookups
   const [showReasonModal, setShowReasonModal] = useState(false);
   const [pendingPhoneQuery, setPendingPhoneQuery] = useState("");
-  const [selectedReason, setSelectedReason] = useState<"Emergency admission" | "Patient present and consenting" | "Referral">("Emergency admission");
+  const [selectedReason, setSelectedReason] = useState<
+    "Card QR scanned" | "Emergency admission" | "Patient present and consenting" | "Referral"
+  >("Emergency admission");
 
   // Patient Record Sub-tabs
   const [recordTab, setRecordTab] = useState<
@@ -189,12 +211,28 @@ export default function HospitalEHRDashboard() {
   const [accessLogs, setAccessLogs] = useState<AuditLogEntry[]>([]);
   const [isLoadingLogs, setIsLoadingLogs] = useState(false);
 
-  // Today's Looked-up patients history table
-  const [todayLookups, setTodayLookups] = useState<Array<{ pid: string; name: string; age: number; blood: string; time: string; reason: string }>>([
-    { pid: "PRAN-ba42c5c2", name: "Sreeju S", age: 19, blood: "B+", time: "10:14 AM", reason: "Direct PRANA Card Tap" },
-    { pid: "PRAN-9921D8A2", name: "Kavita Ramachandran", age: 34, blood: "O+", time: "11:30 AM", reason: "Emergency admission" },
-    { pid: "PRAN-4410A1B0", name: "Rohan Varma", age: 48, blood: "A+", time: "01:05 PM", reason: "Patient present and consenting" },
-  ]);
+  // Live Clock State for top navbar
+  const [liveClock, setLiveClock] = useState<string>("");
+
+  useEffect(() => {
+    const updateTime = () => {
+      setLiveClock(new Date().toLocaleTimeString([], { hour: "2-digit", minute: "2-digit", second: "2-digit" }));
+    };
+    updateTime();
+    const timer = setInterval(updateTime, 1000);
+    return () => clearInterval(timer);
+  }, []);
+
+  // Today's Looked-up patients history table (Real database scan_logs)
+  const [todayLookups, setTodayLookups] = useState<Array<{
+    pid: string;
+    name: string;
+    age: number;
+    blood: string;
+    critical_allergy: string;
+    time: string;
+    reason: string;
+  }>>([]);
 
   // Settings State
   const [passwordChange, setPasswordChange] = useState({ current: "", newPass: "", confirm: "" });
@@ -278,19 +316,27 @@ export default function HospitalEHRDashboard() {
 
       // Add to today's lookups list
       const nowTime = new Date().toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' });
+      const topCritical = (data.allergies || []).find(
+        (a: { is_critical?: boolean; severity?: string; allergen: string }) => a.is_critical || a.severity?.toLowerCase() === 'severe'
+      );
+      const criticalAllergyStr = topCritical ? `⚠️ ${topCritical.allergen}` : (data.allergies?.length > 0 ? data.allergies[0].allergen : "None recorded");
+      const normalizedReason = reasonOverride || (isPhoneSearch ? "Emergency admission" : "Card QR scanned");
+
       setTodayLookups(prev => [
         {
           pid: data.patient.prana_id,
           name: data.patient.full_name,
           age: data.patient.age,
           blood: data.patient.blood_group,
+          critical_allergy: criticalAllergyStr,
           time: nowTime,
-          reason: reasonOverride || (isPhoneSearch ? "Phone Break-Glass Search" : "Direct Hospital Lookup"),
+          reason: normalizedReason,
         },
         ...prev.filter(p => p.pid !== data.patient.prana_id),
       ]);
 
       showToast(`Patient file loaded: ${data.patient.full_name}`);
+      fetchAccessLogs();
     } catch (err: unknown) {
       setSearchError(err instanceof Error ? err.message : "Failed to retrieve clinical file");
       setPatientData(null);
@@ -341,19 +387,49 @@ export default function HospitalEHRDashboard() {
     }
   };
 
-  // Load Access Logs for this hospital
-  const fetchAccessLogs = async () => {
+  // Load Access Logs for this hospital and populate real "Patients Looked Up Today"
+  const fetchAccessLogs = async (hospId?: string) => {
     setIsLoadingLogs(true);
     try {
       const token = getAuthToken();
-      const res = await fetch(`/api/admin/audit-logs?limit=50&hospital_id=${encodeURIComponent(hospitalSession.hospital_id)}`, {
+      const currentHospId = hospId || hospitalSession.hospital_id;
+      const res = await fetch(`/api/admin/audit-logs?limit=50&hospital_id=${encodeURIComponent(currentHospId)}`, {
         headers: {
           Authorization: `Bearer ${token}`,
         },
       });
       const data = await res.json();
-      if (data.success) {
-        setAccessLogs(data.data as AuditLogEntry[]);
+      if (data.success && Array.isArray(data.data)) {
+        const logs = data.data as AuditLogEntry[];
+        setAccessLogs(logs);
+
+        // Deduplicate by prana_id to show latest lookup per patient today
+        const seenPids = new Set<string>();
+        const lookups: Array<{
+          pid: string;
+          name: string;
+          age: number;
+          blood: string;
+          critical_allergy: string;
+          time: string;
+          reason: string;
+        }> = [];
+
+        for (const log of logs) {
+          if (!log.prana_id || seenPids.has(log.prana_id)) continue;
+          seenPids.add(log.prana_id);
+          lookups.push({
+            pid: log.prana_id,
+            name: log.patient_name || 'Patient Record',
+            age: log.patient_age || 19,
+            blood: log.patient_blood_group || 'O+',
+            critical_allergy: log.critical_allergy || 'None recorded',
+            time: new Date(log.scanned_at).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' }),
+            reason: log.reason || 'Emergency admission',
+          });
+        }
+
+        setTodayLookups(lookups);
       }
     } catch {
       showToast("Error loading facility access logs", "error");
@@ -516,6 +592,7 @@ export default function HospitalEHRDashboard() {
       if (token && storedHosp) {
         const hospObj = JSON.parse(storedHosp);
         setHospitalSession(hospObj);
+        fetchAccessLogs(hospObj.hospital_id);
       } else {
         // Fallback default facility session so /hospitals dashboard renders immediately
         const defaultHosp: HospitalSession = {
@@ -529,6 +606,7 @@ export default function HospitalEHRDashboard() {
         setHospitalSession(defaultHosp);
         // Persist default demo hospital session so all API calls succeed
         localStorage.setItem("prana_hosp_session", JSON.stringify(defaultHosp));
+        fetchAccessLogs(defaultHosp.hospital_id);
       }
 
       setIsAuthenticated(true);
@@ -607,9 +685,10 @@ export default function HospitalEHRDashboard() {
                 onChange={(e) => setSelectedReason(e.target.value as typeof selectedReason)}
                 className="w-full bg-white border border-slate-300 rounded-lg px-3 py-2 text-xs font-semibold text-slate-900 outline-none focus:ring-1 focus:ring-teal-600"
               >
-                <option value="Emergency admission">Emergency admission (Unconscious / Critical trauma)</option>
+                <option value="Card QR scanned">Card QR scanned</option>
+                <option value="Emergency admission">Emergency admission</option>
                 <option value="Patient present and consenting">Patient present and consenting</option>
-                <option value="Referral">Physician Referral / Inter-facility transfer</option>
+                <option value="Referral">Referral</option>
               </select>
             </div>
 
@@ -648,10 +727,10 @@ export default function HospitalEHRDashboard() {
               🏥
             </div>
             <div className="min-w-0">
-              <div className="font-bold text-xs text-slate-900 truncate" title={hospitalSession.name}>
+              <div className="font-bold text-xs text-slate-900 leading-snug line-clamp-2 break-words" title={hospitalSession.name}>
                 {hospitalSession.name}
               </div>
-              <div className="font-mono text-xs font-bold text-teal-700 mt-0.5 tracking-tight">
+              <div className="font-mono text-xs font-bold text-teal-700 mt-1 tracking-tight">
                 {hospitalSession.hospital_id}
               </div>
             </div>
@@ -761,18 +840,21 @@ export default function HospitalEHRDashboard() {
           </nav>
         </div>
 
-        {/* Sidebar Footer: Logout Button */}
-        <div className="p-3 border-t border-slate-100 space-y-2">
-          <div className="px-2 py-1 bg-slate-50 border border-slate-200 rounded-lg text-[11px] text-slate-500 font-mono flex items-center justify-between">
-            <span>Session:</span>
-            <span className="text-emerald-700 font-bold">Active ●</span>
+        {/* Sidebar Footer: Hospital ID + Logout Button */}
+        <div className="p-3 border-t border-slate-100 space-y-2 bg-slate-50/50">
+          <div className="px-2.5 py-1.5 bg-white border border-slate-200 rounded-lg text-[11px] text-slate-600 font-mono flex items-center justify-between">
+            <span className="font-bold text-slate-700">{hospitalSession.hospital_id}</span>
+            <span className="text-emerald-700 font-bold text-[10px] flex items-center gap-1">
+              <span className="w-1.5 h-1.5 rounded-full bg-emerald-500 animate-pulse"></span>
+              Online
+            </span>
           </div>
           <button
             onClick={handleLogout}
-            className="w-full flex items-center justify-center gap-2 px-3 py-2.5 rounded-lg text-xs font-bold text-red-600 hover:text-red-700 bg-red-50 hover:bg-red-100 border border-red-200 transition shadow-2xs"
+            className="w-full flex items-center justify-center gap-2 px-3 py-2 rounded-lg text-xs font-bold text-red-700 hover:text-red-800 bg-red-50 hover:bg-red-100 border border-red-200 transition shadow-2xs"
           >
             <span>🚪</span>
-            <span>Sign Out Facility</span>
+            <span>Logout</span>
           </button>
         </div>
       </aside>
@@ -792,6 +874,13 @@ export default function HospitalEHRDashboard() {
           </div>
 
           <div className="flex items-center gap-3 text-xs font-semibold">
+            {/* Live Clock & Hospital ID Badge */}
+            <div className="hidden sm:flex items-center gap-2 px-2.5 py-1 bg-slate-50 border border-slate-200 rounded-lg text-slate-600 font-mono text-[11px]">
+              <span className="font-bold text-teal-800">{hospitalSession.hospital_id}</span>
+              <span className="text-slate-300">|</span>
+              <span className="text-slate-500 font-medium">🕒 {liveClock || "00:00:00"}</span>
+            </div>
+
             {navSection === "paramedics" && (
               <button
                 onClick={() => setShowAddParamedicModal(true)}
@@ -834,14 +923,18 @@ export default function HospitalEHRDashboard() {
                       type="text"
                       value={searchPid}
                       onChange={(e) => setSearchPid(e.target.value)}
-                      onKeyDown={(e) => { if (e.key === "Enter") performSearch(searchPid); }}
-                      placeholder="PRANA ID (PRAN-ba42c5c2) or Phone # (9489365108)"
-                      className="flex-1 bg-white border border-slate-300 focus:border-teal-600 focus:ring-1 focus:ring-teal-600 rounded-lg px-3.5 py-2 text-xs font-mono text-slate-900 outline-none"
+                      onKeyDown={(e) => { if (e.key === "Enter" && searchPid.trim()) performSearch(searchPid); }}
+                      placeholder="PRAN-XXXX-XXXX or phone number"
+                      className="flex-1 bg-white border border-slate-300 focus:border-teal-600 focus:ring-1 focus:ring-teal-600 rounded-lg px-3.5 py-2 text-xs font-mono text-slate-900 outline-none uppercase placeholder:normal-case"
                     />
                     <button
                       onClick={() => performSearch(searchPid)}
-                      disabled={isSearching || !searchPid}
-                      className="bg-teal-600 hover:bg-teal-700 disabled:opacity-50 text-white font-bold px-4 py-2 rounded-lg text-xs transition shadow-xs shrink-0"
+                      disabled={isSearching || !searchPid.trim()}
+                      className={`font-bold px-4 py-2 rounded-lg text-xs transition shadow-xs shrink-0 ${
+                        searchPid.trim()
+                          ? "bg-teal-600 hover:bg-teal-700 text-white cursor-pointer opacity-100"
+                          : "bg-teal-600 text-white opacity-40 cursor-not-allowed"
+                      }`}
                     >
                       {isSearching ? "Searching..." : "Search"}
                     </button>
@@ -860,23 +953,6 @@ export default function HospitalEHRDashboard() {
                     {searchError}
                   </div>
                 )}
-
-                <div className="flex items-center gap-3 text-[11px] text-slate-500 pt-3 border-t border-slate-100">
-                  <span>Quick Identifiers:</span>
-                  <button
-                    onClick={() => { setSearchPid("PRAN-ba42c5c2"); performSearch("PRAN-ba42c5c2"); }}
-                    className="font-mono text-teal-700 font-bold hover:underline"
-                  >
-                    PRAN-ba42c5c2 (PRANA ID)
-                  </button>
-                  <span>•</span>
-                  <button
-                    onClick={() => { setSearchPid("9489365108"); performSearch("9489365108"); }}
-                    className="font-mono text-teal-700 font-bold hover:underline"
-                  >
-                    9489365108 (Phone - Break-Glass)
-                  </button>
-                </div>
               </div>
 
               {/* ─── 2. PATIENT RECORD (AFTER SEARCH) ─── */}
@@ -955,10 +1031,10 @@ export default function HospitalEHRDashboard() {
                           <span>Open in New Page ↗</span>
                         </a>
 
-                        {/* Blood Group (Big) */}
-                        <div className="bg-red-50 border-2 border-red-200 rounded-2xl px-6 py-3 text-center min-w-[110px]">
-                          <span className="block text-[10px] uppercase font-bold text-red-600 tracking-wider">Blood Group</span>
-                          <span className="text-3xl font-black text-red-700">{patientData.patient.blood_group}</span>
+                        {/* Blood Group (Big) - Bold Dark Neutral Badge */}
+                        <div className="bg-slate-900 border-2 border-slate-700 rounded-2xl px-6 py-3 text-center min-w-[110px] shadow-xs">
+                          <span className="block text-[10px] uppercase font-bold text-slate-300 tracking-wider">Blood Group</span>
+                          <span className="text-3xl font-black text-white">{patientData.patient.blood_group}</span>
                         </div>
                       </div>
                     </div>
@@ -1339,38 +1415,62 @@ export default function HospitalEHRDashboard() {
                       <th className="py-2.5 px-3">Patient Name</th>
                       <th className="py-2.5 px-3">Age</th>
                       <th className="py-2.5 px-3">Blood Group</th>
+                      <th className="py-2.5 px-3">Critical Allergy</th>
                       <th className="py-2.5 px-3">Looked Up Time</th>
                       <th className="py-2.5 px-3">Access Justification</th>
                       <th className="py-2.5 px-3 text-right">Action</th>
                     </tr>
                   </thead>
                   <tbody className="divide-y divide-slate-100">
-                    {todayLookups.slice((lookupsPage - 1) * lookupsPerPage, lookupsPage * lookupsPerPage).map((p, idx) => (
-                      <tr key={idx} className="hover:bg-slate-50 transition">
-                        <td className="py-3 px-3 font-mono font-bold text-teal-700">{p.pid}</td>
-                        <td className="py-3 px-3 font-bold text-slate-800">{p.name}</td>
-                        <td className="py-3 px-3 text-slate-600">{p.age} Yrs</td>
-                        <td className="py-3 px-3 font-black text-red-700">{p.blood}</td>
-                        <td className="py-3 px-3 font-mono text-slate-500">{p.time}</td>
-                        <td className="py-3 px-3">
-                          <span className="text-[10px] font-semibold px-2 py-0.5 rounded bg-slate-100 text-slate-700 border border-slate-200">
-                            {p.reason}
-                          </span>
-                        </td>
-                        <td className="py-3 px-3 text-right">
-                          <div className="flex items-center justify-end gap-2">
-                            <a
-                              href={`/hospitals/records/${encodeURIComponent(p.pid)}`}
-                              target="_blank"
-                              rel="noopener noreferrer"
-                              className="bg-teal-50 hover:bg-teal-100 text-teal-800 border border-teal-200 px-3 py-1 rounded-lg text-xs font-bold transition flex items-center gap-1 shadow-2xs"
-                            >
-                              <span>Open Record ↗</span>
-                            </a>
-                          </div>
+                    {todayLookups.length > 0 ? (
+                      todayLookups.slice((lookupsPage - 1) * lookupsPerPage, lookupsPage * lookupsPerPage).map((p, idx) => (
+                        <tr key={idx} className="hover:bg-slate-50 transition">
+                          <td className="py-3 px-3 font-mono font-bold text-teal-700">{p.pid}</td>
+                          <td className="py-3 px-3 font-bold text-slate-800">{p.name}</td>
+                          <td className="py-3 px-3 text-slate-600">{p.age} Yrs</td>
+                          <td className="py-3 px-3">
+                            <span className="inline-block px-2 py-0.5 rounded bg-slate-900 text-white font-bold text-[11px] shadow-2xs">
+                              {p.blood}
+                            </span>
+                          </td>
+                          <td className="py-3 px-3">
+                            {p.critical_allergy && p.critical_allergy.includes("⚠️") ? (
+                              <span className="inline-flex items-center gap-1 px-2 py-0.5 rounded bg-red-50 text-red-700 border border-red-200 font-bold text-[11px]">
+                                {p.critical_allergy}
+                              </span>
+                            ) : (
+                              <span className="text-slate-500 font-medium text-[11px]">
+                                {p.critical_allergy || "None recorded"}
+                              </span>
+                            )}
+                          </td>
+                          <td className="py-3 px-3 font-mono text-slate-500">{p.time}</td>
+                          <td className="py-3 px-3">
+                            <span className="text-[10px] font-semibold px-2 py-0.5 rounded bg-slate-100 text-slate-700 border border-slate-200">
+                              {p.reason}
+                            </span>
+                          </td>
+                          <td className="py-3 px-3 text-right">
+                            <div className="flex items-center justify-end gap-2">
+                              <a
+                                href={`/hospitals/records/${encodeURIComponent(p.pid)}`}
+                                target="_blank"
+                                rel="noopener noreferrer"
+                                className="bg-teal-50 hover:bg-teal-100 text-teal-800 border border-teal-200 px-3 py-1 rounded-lg text-xs font-bold transition flex items-center gap-1 shadow-2xs"
+                              >
+                                <span>Open Record ↗</span>
+                              </a>
+                            </div>
+                          </td>
+                        </tr>
+                      ))
+                    ) : (
+                      <tr>
+                        <td colSpan={8} className="py-8 text-center text-slate-500">
+                          No patients looked up yet today by this hospital facility.
                         </td>
                       </tr>
-                    ))}
+                    )}
                   </tbody>
                 </table>
 
@@ -1833,7 +1933,7 @@ export default function HospitalEHRDashboard() {
                   </p>
                 </div>
                 <button
-                  onClick={fetchAccessLogs}
+                  onClick={() => fetchAccessLogs()}
                   disabled={isLoadingLogs}
                   className="bg-slate-100 hover:bg-slate-200 text-slate-700 font-bold text-xs px-3.5 py-2 rounded-lg transition"
                 >

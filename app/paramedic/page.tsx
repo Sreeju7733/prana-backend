@@ -78,6 +78,7 @@ export default function ParamedicAppWhite() {
   const [errorMsg, setErrorMsg] = useState<string | null>(null);
 
   useEffect(() => {
+    document.title = "EMS Paramedic Emergency Response Portal • PRANA";
     try {
       const savedSession = localStorage.getItem("prana_paramedic_app_session");
       if (savedSession) {
@@ -278,9 +279,9 @@ export default function ParamedicAppWhite() {
                 </div>
               </div>
 
-              <div className="bg-red-50 border border-red-200 rounded-xl px-3.5 py-1.5 text-center">
-                <span className="block text-[8px] uppercase font-bold text-red-600">Blood Group</span>
-                <span className="text-xl font-black text-red-700">{patientData.patient.blood_group}</span>
+              <div className="bg-slate-900 border border-slate-700 rounded-xl px-3.5 py-1.5 text-center shadow-xs">
+                <span className="block text-[8px] uppercase font-bold text-slate-300">Blood Group</span>
+                <span className="text-xl font-black text-white">{patientData.patient.blood_group}</span>
               </div>
             </div>
 

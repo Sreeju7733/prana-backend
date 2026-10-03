@@ -49,18 +49,66 @@ export async function GET(req: NextRequest) {
       return NextResponse.json({ success: false, error: error.message }, { status: 500 });
     }
 
-    // Enrich logs with display labels
-    const enriched = (logs || []).map(l => ({
-      id: l.id,
-      prana_id: l.prana_id,
-      scanned_at: l.scanned_at,
-      access_tier: (l.access_tier || 'yellow').toUpperCase(),
-      actor: l.responder_code ? `Paramedic (${l.responder_code})` : (l.doctor_id ? `Doctor (${l.doctor_id})` : 'Paramedic Unit'),
-      hospital_id: l.hospital_id || 'EMS Field Unit',
-      scanner_type: l.device_type || 'Mobile PWA',
-      reason: l.denial_reason || 'Emergency medical triage scan',
-      access_granted: l.access_granted !== false,
-    }));
+    // Gather unique prana_ids from logs to enrich with patient profile details
+    const uniquePranaIds = Array.from(new Set((logs || []).map(l => l.prana_id).filter(Boolean)));
+    const profileMap = new Map<string, { full_name: string; age?: number; blood_group: string; critical_allergy: string }>();
+
+    if (uniquePranaIds.length > 0) {
+      try {
+        const { data: profiles } = await supabase
+          .from('profiles')
+          .select('id, prana_id, full_name, date_of_birth, blood_group')
+          .in('prana_id', uniquePranaIds);
+
+        const userIds = (profiles || []).map(p => p.id);
+        const { data: allergies } = userIds.length > 0 ? await supabase
+          .from('allergies')
+          .select('user_id, allergen, severity, is_critical')
+          .in('user_id', userIds) : { data: [] };
+
+        (profiles || []).forEach(p => {
+          let age = 19;
+          if (p.date_of_birth) {
+            const birthDate = new Date(p.date_of_birth);
+            const ageDiff = Date.now() - birthDate.getTime();
+            age = Math.abs(new Date(ageDiff).getUTCFullYear() - 1970) || 19;
+          }
+
+          const userAllergies = (allergies || []).filter(a => a.user_id === p.id);
+          const topCritical = userAllergies.find(a => a.is_critical || a.severity?.toLowerCase() === 'severe');
+          const criticalAllergy = topCritical ? `⚠️ ${topCritical.allergen}` : (userAllergies.length > 0 ? userAllergies[0].allergen : 'None recorded');
+
+          profileMap.set(p.prana_id, {
+            full_name: p.full_name || 'Patient Record',
+            age,
+            blood_group: p.blood_group || 'O+',
+            critical_allergy: criticalAllergy,
+          });
+        });
+      } catch {
+        // Fallback gracefully
+      }
+    }
+
+    // Enrich logs with display labels and patient profile
+    const enriched = (logs || []).map(l => {
+      const pInfo = profileMap.get(l.prana_id);
+      return {
+        id: l.id,
+        prana_id: l.prana_id,
+        patient_name: pInfo?.full_name || 'Patient Record',
+        patient_age: pInfo?.age || 19,
+        patient_blood_group: pInfo?.blood_group || 'O+',
+        critical_allergy: pInfo?.critical_allergy || 'None recorded',
+        scanned_at: l.scanned_at,
+        access_tier: (l.access_tier || 'yellow').toUpperCase(),
+        actor: l.responder_code ? `Paramedic (${l.responder_code})` : (l.doctor_id ? `Doctor (${l.doctor_id})` : 'Paramedic Unit'),
+        hospital_id: l.hospital_id || 'EMS Field Unit',
+        scanner_type: l.device_type || 'Mobile PWA',
+        reason: l.denial_reason || 'Emergency admission',
+        access_granted: l.access_granted !== false,
+      };
+    });
 
     return NextResponse.json({
       success: true,

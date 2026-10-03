@@ -116,9 +116,14 @@ export default function HospitalPatientRecordPage() {
           throw new Error(data.error || "Failed to retrieve clinical chart");
         }
 
-        setPatientData(data as PatientSearchResponse);
+        const patientResp = data as PatientSearchResponse;
+        setPatientData(patientResp);
+        if (patientResp.patient) {
+          document.title = `${patientResp.patient.full_name} (${patientResp.patient.prana_id}) • Clinical Chart | PRANA EHR`;
+        }
       } catch (err: unknown) {
         setError(err instanceof Error ? err.message : "Error loading patient record");
+        document.title = `Patient Record Not Found • PRANA EHR`;
       } finally {
         setIsLoading(false);
       }
