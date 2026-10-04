@@ -72,6 +72,7 @@ export async function GET(req: NextRequest) {
     (todayScans || []).forEach(scan => {
       const tier = (scan.access_tier || '').toLowerCase();
       if (tier.includes('green')) scansGreen++;
+
       else if (tier.includes('yellow')) scansYellow++;
       else if (tier.includes('red')) scansRed++;
       else scansGreen++;
