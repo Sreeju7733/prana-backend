@@ -14,8 +14,8 @@ export async function PATCH(
         const body = await req.json();
 
         // Find by server ID or client_uuid
-        let existing: any;
-        let fetchError: any;
+        let existing: Record<string, unknown> | null = null;
+        let fetchError: Error | { message: string } | null = null;
 
         const resById = await supabase
             .from('allergies')

@@ -65,7 +65,7 @@ export function decrypt(encryptedText: string): string {
   const decipher = crypto.createDecipheriv(ALGORITHM, key, nonce);
   decipher.setAuthTag(tag);
   
-  let decrypted = decipher.update(encrypted);
+  const decrypted = decipher.update(encrypted);
   const final = decipher.final();
   return Buffer.concat([decrypted, final]).toString('utf8');
 }

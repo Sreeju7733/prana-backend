@@ -124,7 +124,7 @@ console.log(`   Notes: ${unpacked.notes.length}\n`);
 // Verify data integrity
 console.log('🔍 Verifying Data Integrity...');
 let passed = 0, failed = 0;
-function check(label: string, expected: any, actual: any) {
+function check(label: string, expected: unknown, actual: unknown) {
   if (JSON.stringify(expected) === JSON.stringify(actual)) {
     console.log(`   ✅ ${label}`); passed++;
   } else {

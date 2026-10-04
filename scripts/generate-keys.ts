@@ -72,12 +72,12 @@ console.log('   - keys.json (backup)');
 // Update .env if it exists
 const envPath = join(outputDir, '../.env.local');
 try {
-  const { readFileSync, writeFileSync } = require('fs');
-  const envContent = readFileSync(envPath, 'utf8');
+  const fs = await import('fs');
+  const envContent = fs.readFileSync(envPath, 'utf8');
   const newEnvContent = envContent
     .replace(/RESPONDER_PUBLIC_KEY=.*/g, `RESPONDER_PUBLIC_KEY=${Buffer.from(responderKeys.publicKey).toString('hex')}`)
     .replace(/SIGNING_PUBLIC_KEY=.*/g, `SIGNING_PUBLIC_KEY=${Buffer.from(signingKeys.publicKey).toString('hex')}`);
-  writeFileSync(envPath, newEnvContent);
+  fs.writeFileSync(envPath, newEnvContent);
   console.log('\n✅ Updated .env.local with public keys');
 } catch {
   console.log('\n⚠️  Could not update .env.local');

@@ -63,7 +63,7 @@ console.log(`   Flags: ${unpacked.criticalFlags.length}\n`);
 
 console.log('🔍 VERIFYING...');
 let passed = 0, failed = 0;
-function check(label: string, expected: any, actual: any) {
+function check(label: string, expected: unknown, actual: unknown) {
   if (JSON.stringify(expected) === JSON.stringify(actual)) {
     console.log(`   ✅ ${label}`); passed++;
   } else {
