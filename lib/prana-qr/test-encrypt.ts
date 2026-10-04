@@ -75,7 +75,6 @@ const components = buildQr(
   responderKeys.privateKey,
   signingKeys.privateKey,
   responderKeys.publicKey,
-  signingKeys.publicKey,
 );
 
 // Convert to Base45
