@@ -1,6 +1,6 @@
 import { NextRequest, NextResponse } from 'next/server';
 import { supabase, verifyHospitalToken } from '@/lib/auth';
-import { decrypt, isEncrypted } from '@/lib/crypto/field-encryption';
+import { decrypt } from '@/lib/crypto/field-encryption';
 
 // GET /api/hospitals/search-patient?prana_id=PRAN-ba42c5c2
 export async function GET(req: NextRequest) {
@@ -90,15 +90,6 @@ export async function GET(req: NextRequest) {
 
     const hasActive24hWindow = priorLogs && priorLogs.length > 0;
     const previousReason = hasActive24hWindow ? priorLogs[0].denial_reason : null;
-
-    // Fixed access reasons:
-    // "Card QR scanned" | "Emergency admission" | "Patient present and consenting" | "Referral"
-    const VALID_REASONS = [
-      'Card QR scanned',
-      'Emergency admission',
-      'Patient present and consenting',
-      'Referral'
-    ];
 
     let accessReason = reason ? reason.trim() : '';
 
