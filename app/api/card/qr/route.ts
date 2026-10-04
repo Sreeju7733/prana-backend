@@ -146,7 +146,6 @@ export async function GET(req: NextRequest) {
       responderPrivateKey,
       signingPrivateKey,
       responderPublicKey,
-      signingPublicKey,
     );
 
     // Convert to Base45
