@@ -51,8 +51,8 @@ export async function POST(req: NextRequest) {
             updated_at: new Date().toISOString()
         };
 
-        let data: any;
-        let error: any;
+        let data: unknown = null;
+        let error: Error | { message: string } | null = null;
 
         if (body.id) {
             const res = await supabase
