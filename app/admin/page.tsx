@@ -1,7 +1,6 @@
 "use client";
 
-import React, { useState, useEffect } from "react";
-import Link from "next/link";
+import React, { useState, useEffect, useCallback } from "react";
 import { useRouter } from "next/navigation";
 
 interface Hospital {
@@ -205,7 +204,7 @@ export default function ProfessionalSuperAdminDashboard() {
   ]);
 
   // Lost & suspended cards list
-  const [lostCards, setLostCards] = useState<LostCard[]>([
+  const [lostCards] = useState<LostCard[]>([
     {
       id: "lost-1",
       prana_id: "PRAN-3108E410",
