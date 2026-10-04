@@ -1,12 +1,10 @@
 import { NextRequest, NextResponse } from 'next/server';
 import { supabase, verifyToken } from '@/lib/auth';
 import { ed25519 } from '@noble/curves/ed25519.js';
-import { randomBytes } from '@noble/curves/utils.js';
-import * as crypto from 'crypto';
 
 // ─── GET /api/revocations ───────────────────────────────────────────────────
 // Returns list of revoked PRANA IDs, signed so responders can verify integrity
-export async function GET(req: NextRequest) {
+export async function GET() {
   try {
     const signingPrivHex = process.env.SIGNING_PRIVATE_KEY || '';
     if (!signingPrivHex) {
