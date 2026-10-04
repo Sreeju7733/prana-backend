@@ -1759,7 +1759,20 @@ export default function HospitalEHRDashboard() {
                     </tr>
                   </thead>
                   <tbody className="divide-y divide-slate-100">
-                    {hospitalParamedics.slice((paramedicsPage - 1) * paramedicsPerPage, paramedicsPage * paramedicsPerPage).map(p => (
+                    {isLoadingParamedics ? (
+                      <tr>
+                        <td colSpan={8} className="py-8 text-center text-slate-500">
+                          <span className="inline-block animate-spin mr-2">🔄</span> Loading paramedic team...
+                        </td>
+                      </tr>
+                    ) : hospitalParamedics.length === 0 ? (
+                      <tr>
+                        <td colSpan={8} className="py-8 text-center text-slate-500">
+                          No paramedics registered yet. Click &quot;Add Paramedic&quot; above to provision responders.
+                        </td>
+                      </tr>
+                    ) : (
+                      hospitalParamedics.slice((paramedicsPage - 1) * paramedicsPerPage, paramedicsPage * paramedicsPerPage).map(p => (
                       <tr key={p.id} className="hover:bg-slate-50 transition">
                         <td className="py-3 px-3 font-mono text-[11px] text-teal-700 font-bold">{p.responder_code}</td>
                         <td className="py-3 px-3 font-bold text-slate-900">{p.name}</td>
@@ -1806,7 +1819,7 @@ export default function HospitalEHRDashboard() {
                           </button>
                         </td>
                       </tr>
-                    ))}
+                    )))}
                   </tbody>
                 </table>
 

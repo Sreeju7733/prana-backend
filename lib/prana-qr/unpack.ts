@@ -14,7 +14,6 @@ import {
   FREQUENCIES,
   PRESET_NOTES,
   BLOOD_GROUPS,
-  GENDERS,
 } from './codebook';
 
 export interface UnpackedData {
@@ -36,7 +35,6 @@ export interface UnpackedData {
 
 const SEVERITY_NAMES = ['mild', 'moderate', 'severe', 'life_threatening'];
 const GENDER_NAMES = ['Male', 'Female', 'Other'];
-const STATUS_NAMES = ['active', 'resolved', 'chronic'];
 
 export function unpack(bytes: Uint8Array): UnpackedData {
   let offset = 0;
@@ -46,7 +44,7 @@ export function unpack(bytes: Uint8Array): UnpackedData {
     return bytes[offset++];
   }
 
-  function readString(maxLen: number): string {
+  function readString(_maxLen?: number): string {
     const len = readByte();
     if (len === null || len === 0) return '';
     const bytes = readBytes(len);

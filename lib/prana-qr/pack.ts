@@ -7,12 +7,6 @@
 
 import {
   CODEBOOK_VERSION,
-  ALLERGENS,
-  MEDICINES,
-  CONDITIONS,
-  CRITICAL_FLAGS,
-  FREQUENCIES,
-  PRESET_NOTES,
   BLOOD_GROUPS,
   GENDERS,
   getAllergenIndex,
@@ -50,7 +44,6 @@ const SEVERITY_MAP: Record<string, number> = { 'mild': 0, 'moderate': 1, 'severe
 
 export function pack(data: PatientData): PackedData {
   const buffer: number[] = [];
-  const truncatedItems: string[] = [];
 
   function addByte(b: number): boolean {
     if (buffer.length >= MAX_SIZE) return false;

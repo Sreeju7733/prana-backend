@@ -137,7 +137,6 @@ export function buildQr(
   responderPrivateKey: Uint8Array,
   signingPrivateKey: Uint8Array,
   responderPublicKey: Uint8Array,
-  signingPublicKey: Uint8Array,
 ): QrComponents {
   // Pack patient data
   const packed = pack(patientData);

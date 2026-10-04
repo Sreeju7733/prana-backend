@@ -4,7 +4,6 @@
  */
 
 import { x25519, ed25519 } from '@noble/curves/ed25519.js';
-import { randomBytes } from '@noble/curves/utils.js';
 import * as crypto from 'crypto';
 import { unpack, type UnpackedData } from '@/lib/prana-qr/unpack';
 

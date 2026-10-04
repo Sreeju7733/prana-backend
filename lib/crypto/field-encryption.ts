@@ -9,7 +9,6 @@ import * as crypto from 'crypto';
 const ALGORITHM = 'aes-256-gcm';
 const KEY_LENGTH = 32; // bytes for AES-256
 const NONCE_LENGTH = 12; // bytes
-const TAG_LENGTH = 16; // bytes
 const FORMAT_VERSION = 'v1';
 
 function getKey(): Buffer {

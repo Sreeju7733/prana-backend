@@ -6,15 +6,13 @@
 import { 
   generateResponderKeys, 
   generateSigningKeys,
-  encrypt, 
-  decrypt,
-  sign, 
+  decrypt, 
   verify,
   buildQr,
   qrToBase45,
   type QrHeader 
 } from './encrypt';
-import { pack, type PatientData } from './pack';
+import { type PatientData } from './pack';
 import { unpack } from './unpack';
 
 const testData: PatientData = {
