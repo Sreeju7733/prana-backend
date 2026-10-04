@@ -50,6 +50,7 @@ export function base45Encode(bytes: Uint8Array): string {
 
 // ─── QR Components ───────────────────────────────────────────────────────────
 export interface QrComponents {
+  headerBytes: Uint8Array;
   version: number;
   age: number;
   gender: number;
@@ -70,9 +71,10 @@ export function parseQrString(qrString: string): QrComponents | null {
   try {
     const bytes = base45Decode(qrString.trim());
     
-    // Header is 47 bytes
-    if (bytes.length < 47) return null;
+    // Header is 47 bytes, plus ephemeral key (32), nonce (12), tag (16), signature (64) = min 171 bytes
+    if (bytes.length < 171) return null;
     
+    const headerBytes = bytes.subarray(0, 47);
     const version = bytes[0];
     const age = bytes[1];
     const gender = bytes[2];
@@ -96,12 +98,16 @@ export function parseQrString(qrString: string): QrComponents | null {
     const encStart = 47;
     const ephemeralPublicKey = bytes.subarray(encStart, encStart + 32);
     const nonce = bytes.subarray(encStart + 32, encStart + 44);
-    const ctTl = bytes.length - encStart - 32 - 12 - 32; // remaining after sig
-    const ciphertext = bytes.subarray(encStart + 44, encStart + 44 + ctTl - 16);
-    const tag = bytes.subarray(encStart + 44 + ctTl - 16, encStart + 44 + ctTl);
-    const signature = bytes.subarray(encStart + 44 + ctTl);
+    
+    // Signature is 64 bytes for Ed25519, tag is 16 bytes for AES-GCM
+    const sigLen = 64;
+    const tagLen = 16;
+    const ciphertext = bytes.subarray(encStart + 44, bytes.length - sigLen - tagLen);
+    const tag = bytes.subarray(bytes.length - sigLen - tagLen, bytes.length - sigLen);
+    const signature = bytes.subarray(bytes.length - sigLen);
     
     return {
+      headerBytes,
       version, age, gender, bloodGroupIdx, pranaIdSuffix, timestamp,
       encrypted: { ephemeralPublicKey, nonce, ciphertext, tag },
       signature,
@@ -136,15 +142,17 @@ export async function decodeQr(
     return { success: false, error: 'QR code has expired' };
   }
   
-  // Verify signature
+  // Verify signature over header + encrypted components
   const signingPubKey = Buffer.from(signingPublicKeyHex, 'hex');
   const dataForSignature = new Uint8Array(
+    components.headerBytes.length +
     components.encrypted.ephemeralPublicKey.length +
     components.encrypted.nonce.length +
     components.encrypted.ciphertext.length +
     components.encrypted.tag.length
   );
   let offset = 0;
+  dataForSignature.set(components.headerBytes, offset); offset += components.headerBytes.length;
   dataForSignature.set(components.encrypted.ephemeralPublicKey, offset); offset += 32;
   dataForSignature.set(components.encrypted.nonce, offset); offset += 12;
   dataForSignature.set(components.encrypted.ciphertext, offset); offset += components.encrypted.ciphertext.length;
