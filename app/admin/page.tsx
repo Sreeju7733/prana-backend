@@ -268,13 +268,20 @@ export default function ProfessionalSuperAdminDashboard() {
   }, [activeNav]);
 
   useEffect(() => {
-    const savedToken = localStorage.getItem("prana_admin_token");
-    const savedEmail = localStorage.getItem("prana_admin_email");
-    if (savedToken) {
-      setAdminToken(savedToken);
-      setAdminUser({ email: savedEmail || "admin@prana.health", name: "PRANA Admin" });
-    }
-    setAuthChecked(true);
+    let active = true;
+    const checkAuth = async () => {
+      const savedToken = localStorage.getItem("prana_admin_token");
+      const savedEmail = localStorage.getItem("prana_admin_email");
+      if (active && savedToken) {
+        setAdminToken(savedToken);
+        setAdminUser({ email: savedEmail || "admin@prana.health", name: "PRANA Admin" });
+      }
+      if (active) setAuthChecked(true);
+    };
+    checkAuth();
+    return () => {
+      active = false;
+    };
   }, []);
 
   const handleAdminLogin = async (e: React.FormEvent) => {
@@ -317,7 +324,7 @@ export default function ProfessionalSuperAdminDashboard() {
   };
 
   // Centralized data loader
-  const loadAllData = async () => {
+  const loadAllData = useCallback(async () => {
     if (!adminToken) return;
 
     try {
@@ -342,13 +349,17 @@ export default function ProfessionalSuperAdminDashboard() {
     } catch {
       showToast("Error synchronizing admin registry data", "error");
     }
-  };
+  }, [adminToken]);
 
   useEffect(() => {
-    if (adminToken) {
+    let isMounted = true;
+    if (adminToken && isMounted) {
       loadAllData();
     }
-  }, [adminToken]);
+    return () => {
+      isMounted = false;
+    };
+  }, [adminToken, loadAllData]);
 
   // Hospital Actions
   const handleToggleHospital = async (h: Hospital) => {
