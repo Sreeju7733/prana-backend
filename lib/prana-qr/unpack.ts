@@ -44,7 +44,7 @@ export function unpack(bytes: Uint8Array): UnpackedData {
     return bytes[offset++];
   }
 
-  function readString(_maxLen?: number): string {
+  function readString(): string {
     const len = readByte();
     if (len === null || len === 0) return '';
     const bytes = readBytes(len);
