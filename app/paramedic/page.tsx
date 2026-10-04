@@ -79,14 +79,21 @@ export default function ParamedicAppWhite() {
 
   useEffect(() => {
     document.title = "EMS Paramedic Emergency Response Portal • PRANA";
-    try {
-      const savedSession = localStorage.getItem("prana_paramedic_app_session");
-      if (savedSession) {
-        setSession(JSON.parse(savedSession));
+    let active = true;
+    const restoreSession = async () => {
+      try {
+        const savedSession = localStorage.getItem("prana_paramedic_app_session");
+        if (active && savedSession) {
+          setSession(JSON.parse(savedSession));
+        }
+      } catch {
+        // Ignore
       }
-    } catch {
-      // Ignore
-    }
+    };
+    restoreSession();
+    return () => {
+      active = false;
+    };
   }, []);
 
   const handleLogin = async (e: React.FormEvent) => {

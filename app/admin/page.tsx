@@ -353,9 +353,12 @@ export default function ProfessionalSuperAdminDashboard() {
 
   useEffect(() => {
     let isMounted = true;
-    if (adminToken && isMounted) {
-      loadAllData();
-    }
+    const run = async () => {
+      if (adminToken && isMounted) {
+        await loadAllData();
+      }
+    };
+    run();
     return () => {
       isMounted = false;
     };

@@ -585,37 +585,47 @@ export default function HospitalEHRDashboard() {
   };
 
   useEffect(() => {
-    try {
-      const token = localStorage.getItem("prana_hosp_token");
-      const storedHosp = localStorage.getItem("prana_hosp_session");
+    let active = true;
+    const init = async () => {
+      try {
+        const token = localStorage.getItem("prana_hosp_token");
+        const storedHosp = localStorage.getItem("prana_hosp_session");
 
-      if (token && storedHosp) {
-        const hospObj = JSON.parse(storedHosp);
-        setHospitalSession(hospObj);
-        fetchAccessLogs(hospObj.hospital_id);
-      } else {
-        // Fallback default facility session so /hospitals dashboard renders immediately
-        const defaultHosp: HospitalSession = {
-          id: "4deb47bf-74ce-40d0-a36d-0fa174f4a1f5",
-          hospital_id: "HOSP-AIIMS-01",
-          name: "AIIMS New Delhi - Trauma & Emergency Center",
-          registration_number: "REG-AIIMS-2024-001",
-          city: "New Delhi",
-          state: "Delhi",
-        };
-        setHospitalSession(defaultHosp);
-        // Persist default demo hospital session so all API calls succeed
-        localStorage.setItem("prana_hosp_session", JSON.stringify(defaultHosp));
-        fetchAccessLogs(defaultHosp.hospital_id);
+        if (token && storedHosp) {
+          const hospObj = JSON.parse(storedHosp);
+          if (active) {
+            setHospitalSession(hospObj);
+            setIsAuthenticated(true);
+          }
+          await fetchAccessLogs(hospObj.hospital_id);
+        } else {
+          const defaultHosp: HospitalSession = {
+            id: "4deb47bf-74ce-40d0-a36d-0fa174f4a1f5",
+            hospital_id: "HOSP-AIIMS-01",
+            name: "AIIMS New Delhi - Trauma & Emergency Center",
+            registration_number: "REG-AIIMS-2024-001",
+            city: "New Delhi",
+            state: "Delhi",
+          };
+          if (active) {
+            setHospitalSession(defaultHosp);
+            setIsAuthenticated(true);
+          }
+          localStorage.setItem("prana_hosp_session", JSON.stringify(defaultHosp));
+          await fetchAccessLogs(defaultHosp.hospital_id);
+        }
+
+        await Promise.all([fetchHospitalParamedics(), fetchIncomingPatients()]);
+      } catch {
+        if (active) setIsAuthenticated(true);
       }
+    };
 
-      setIsAuthenticated(true);
-      fetchHospitalParamedics();
-      fetchIncomingPatients();
-    } catch {
-      setIsAuthenticated(true);
-    }
-  }, [router]);
+    init();
+    return () => {
+      active = false;
+    };
+  }, []);
 
   if (isAuthenticated === null || isAuthenticated === false) {
     return (
