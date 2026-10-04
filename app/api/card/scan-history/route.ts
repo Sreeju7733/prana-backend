@@ -14,15 +14,15 @@ export async function GET(req: NextRequest) {
             .maybeSingle();
 
         const pranaId = profile?.prana_id;
-
-        let query = supabase.from('scan_logs').select('*');
-        if (pranaId) {
-            query = query.or(`user_id.eq.${user.id},prana_id.eq.${pranaId}`);
-        } else {
-            query = query.eq('user_id', user.id);
+        if (!pranaId) {
+            return NextResponse.json({ success: true, data: [] }, { status: 200 });
         }
 
-        const { data: scanLogs, error } = await query.order('scanned_at', { ascending: false });
+        const { data: scanLogs, error } = await supabase
+            .from('scan_logs')
+            .select('*')
+            .eq('prana_id', pranaId)
+            .order('scanned_at', { ascending: false });
 
         if (error) {
             return NextResponse.json({ success: false, error: error.message }, { status: 500 });
