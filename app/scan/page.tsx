@@ -56,7 +56,7 @@ export default function QRScannerPage() {
 
   const scannerRef = useRef<Html5QrcodeScanner | null>(null);
 
-  const handleDecryptPayload = useCallback((payload: string) => {
+  const handleDecryptPayload = useCallback(async (payload: string) => {
     setIsDecrypting(true);
     setError(null);
 
