@@ -39,6 +39,14 @@ export function encrypt(plaintext: string): string {
 }
 
 export function decrypt(encryptedText: string): string {
+  if (!encryptedText) return '';
+  if (encryptedText.startsWith('ENC:')) {
+    try {
+      return Buffer.from(encryptedText.substring(4), 'base64').toString('utf8');
+    } catch {
+      return encryptedText;
+    }
+  }
   if (!encryptedText.startsWith(`${FORMAT_VERSION}:`)) {
     // Not encrypted - return as-is (backwards compatibility with old data)
     return encryptedText;
