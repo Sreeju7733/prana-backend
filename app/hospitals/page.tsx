@@ -625,6 +625,7 @@ export default function HospitalEHRDashboard() {
     return () => {
       active = false;
     };
+    // eslint-disable-next-line react-hooks/exhaustive-deps
   }, []);
 
   if (isAuthenticated === null || isAuthenticated === false) {

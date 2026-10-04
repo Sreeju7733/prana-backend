@@ -93,7 +93,6 @@ export async function GET(req: NextRequest) {
 
     const responderPublicKey = hexToUint8Array(responderPubHex);
     const responderPrivateKey = hexToUint8Array(responderPrivHex);
-    const signingPublicKey = hexToUint8Array(signingPubHex);
     const signingPrivateKey = hexToUint8Array(signingPrivHex);
 
     // Build patient data for packing
