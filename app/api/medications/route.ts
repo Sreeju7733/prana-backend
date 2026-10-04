@@ -53,8 +53,8 @@ export async function POST(req: NextRequest) {
             updated_at: new Date().toISOString()
         };
 
-        let data: any;
-        let error: any;
+        let data: unknown = null;
+        let error: Error | { message: string } | null = null;
 
         // If client_uuid is provided, upsert; otherwise insert new
         if (body.id) {
