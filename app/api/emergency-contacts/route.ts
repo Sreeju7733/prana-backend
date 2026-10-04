@@ -1,6 +1,6 @@
 import { NextRequest, NextResponse } from 'next/server';
 import { supabase, verifyToken } from '@/lib/auth';
-import { encrypt, decrypt, isEncrypted } from '@/lib/crypto/field-encryption';
+import { encrypt, decrypt } from '@/lib/crypto/field-encryption';
 
 // GET /api/emergency-contacts
 export async function GET(req: NextRequest) {

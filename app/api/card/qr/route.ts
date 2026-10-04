@@ -1,17 +1,11 @@
 import { NextRequest, NextResponse } from 'next/server';
 import { supabase, verifyToken } from '@/lib/auth';
 import { 
-  generateResponderKeys, 
-  generateSigningKeys,
-  encrypt, 
-  sign,
   buildQr,
   qrToBase45,
   type QrHeader 
 } from '@/lib/prana-qr/encrypt';
-import { pack, type PatientData } from '@/lib/prana-qr/pack';
-import { readFileSync } from 'fs';
-import { join } from 'path';
+import { type PatientData } from '@/lib/prana-qr/pack';
 
 // Load keys from environment or files
 function loadEnvVar(name: string): string {
@@ -181,7 +175,7 @@ export async function GET(req: NextRequest) {
 // ─── POST /api/card/regenerate ──────────────────────────────────────────────
 export async function POST(req: NextRequest) {
   try {
-    const user = verifyToken(req);
+    verifyToken(req);
     
     // Force regenerate the QR
     const response = await GET(req);

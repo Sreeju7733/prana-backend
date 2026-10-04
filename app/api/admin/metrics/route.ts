@@ -14,8 +14,6 @@ export async function GET(req: NextRequest) {
     const startOfToday = new Date(now.getFullYear(), now.getMonth(), now.getDate()).toISOString();
     const sevenDaysFromNow = new Date(Date.now() + 7 * 24 * 60 * 60 * 1000).toISOString();
     const sevenDaysAgo = new Date(Date.now() - 7 * 24 * 60 * 60 * 1000).toISOString();
-    const startOfMonth = new Date(now.getFullYear(), now.getMonth(), 1).toISOString();
-
     const [
       { count: hospitalCount },
       { count: activeHospitalCount },
@@ -27,8 +25,7 @@ export async function GET(req: NextRequest) {
       { count: lostCardsThisMonth },
       { data: todayScans },
       { data: recentScans },
-      { data: recentHospitals },
-      { data: respondersList }
+      { data: recentHospitals }
     ] = await Promise.all([
       // Hospitals
       supabase.from('verified_hospitals').select('*', { count: 'exact', head: true }),
@@ -47,9 +44,7 @@ export async function GET(req: NextRequest) {
       // Recent audit / scan logs
       supabase.from('scan_logs').select('*').order('scanned_at', { ascending: false }).limit(10),
       // Recent hospitals
-      supabase.from('verified_hospitals').select('*').order('created_at', { ascending: false }).limit(6),
-      // Responders expiring soon for alerts
-      supabase.from('verified_responders').select('id, name, responder_code, organization, expires_at').lte('expires_at', sevenDaysFromNow).limit(5)
+      supabase.from('verified_hospitals').select('*').order('created_at', { ascending: false }).limit(6)
     ]);
 
     const totalHospitals = hospitalCount || 0;

@@ -1,5 +1,5 @@
 import { NextRequest, NextResponse } from 'next/server';
-import { supabase, verifyHospitalToken } from '@/lib/auth';
+import { verifyHospitalToken } from '@/lib/auth';
 
 // In-memory fallback if table is not yet migrated in Supabase
 interface IncomingPatientRecord {
