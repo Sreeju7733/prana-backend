@@ -1,0 +1,28 @@
+sequenceDiagram
+    autonumber
+    actor Victim as Trauma Victim (Unconscious)
+    actor Bystander as Good Samaritan Bystander
+    actor Paramedic as Certified Paramedic / EMT
+    participant Cam as Mobile Camera / Scanner
+    participant Edge as PRANA Edge Gateway (Cloudflare/Next.js)
+    participant Engine as QR Cryptographic Engine
+    participant DB as Supabase PostgreSQL
+    participant SMS as Fast2SMS Gateway
+    actor Kin as Emergency Contact (Next of Kin)
+
+    Victim->>Bystander: Displays Physical / Lockscreen PRANA QR Code
+    Bystander->>Cam: Scans QR with Native Phone Camera
+    Cam->>Edge: HTTPS GET /p/{prana_id} (Unauthenticated Browser Hit)
+    Edge->>DB: Query Public Emergency Fields (Blood Group, Critical Flag, Contacts)
+    DB-->>Edge: Returns Blood Group, First-Aid Tips, Primary Contact Number
+    Edge->>SMS: Asynchronously Trigger Emergency Dispatch Alert
+    SMS-->>Kin: SMS: 'ALERT: PRANA QR for Sreeju S scanned at Location Lat/Long'
+    Edge-->>Bystander: Renders Red Public First-Aid Card with Direct Dial Button
+
+    Paramedic->>Cam: Opens PRANA Responder Mobile App & Scans QR
+    Cam->>Edge: HTTPS POST /api/emergency/verify (PRANA-QR Base45 Ciphertext + JWT)
+    Edge->>Engine: Decrypt Payload (X25519 Shared Secret + AES-GCM Tag Verification)
+    Engine-->>Edge: Validated Emergency Medical Summary (Codebook Dict Extracted)
+    Edge->>DB: INSERT into emergency_access_logs (responder_id, patient_id, timestamp)
+    DB-->>Edge: Audit Entry Committed
+    Edge-->>Paramedic: Renders Paramedic Emergency Dossier (Allergies, Full Meds, Contraindications)

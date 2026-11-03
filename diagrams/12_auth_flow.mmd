@@ -1,0 +1,44 @@
+graph TD
+    subgraph ClientLayer["Client Application Layer"]
+        ClientReq["Client Request + JWT / Cookie"]
+    end
+
+    subgraph EdgeGuard["Edge Routing & Security Middleware"]
+        EdgeMW{"Edge Middleware (/middleware.ts)"}
+        SessionValidate{"Validate Session Token / Signature"}
+    end
+
+    subgraph RoleVerification["Role-Based Access Control (RBAC)"]
+        CheckRoute{"Route Target Domain"}
+        CheckPatient{"Role == 'patient'?"}
+        CheckHospital{"Role == 'hospital_staff' && is_authorized?"}
+        CheckAdmin{"Role == 'super_admin'?"}
+    end
+
+    subgraph DatabaseEnforcement["PostgreSQL Database Row Level Security"]
+        RLS_Engine{"PostgreSQL RLS Engine"}
+        AllowSelf{"auth.uid() == user_id"}
+        AllowER{"is_emergency_access_active(patient_id)"}
+        AllowAdmin{"is_super_admin(auth.uid())"}
+    end
+
+    ClientReq --> EdgeMW
+    EdgeMW --> SessionValidate
+    SessionValidate -- Invalid / Expired --> Reject401["401 Unauthorized / Redirect to Login"]
+    SessionValidate -- Valid Token --> CheckRoute
+
+    CheckRoute -- "/api/medical/*" --> CheckPatient
+    CheckPatient -- No --> Reject403["403 Forbidden"]
+    CheckPatient -- Yes --> RLS_Engine
+
+    CheckRoute -- "/api/hospital/*" --> CheckHospital
+    CheckHospital -- No --> Reject403
+    CheckHospital -- Yes --> RLS_Engine
+
+    CheckRoute -- "/api/admin/*" --> CheckAdmin
+    CheckAdmin -- No --> Reject403
+    CheckAdmin -- Yes --> RLS_Engine
+
+    RLS_Engine --> AllowSelf --> CommitIO[("Execute Authorized Query")]
+    RLS_Engine --> AllowER --> CommitIO
+    RLS_Engine --> AllowAdmin --> CommitIO

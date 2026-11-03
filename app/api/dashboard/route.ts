@@ -41,17 +41,6 @@ export async function GET(req: NextRequest) {
         }
 
         if (!profile) {
-            const { data: latestProfiles } = await supabase
-                .from('profiles')
-                .select('*')
-                .order('created_at', { ascending: false })
-                .limit(1);
-            if (latestProfiles && latestProfiles.length > 0) {
-                profile = latestProfiles[0];
-            }
-        }
-
-        if (!profile) {
             return jsonResponse(null, { code: 'profile_not_found', message: 'User profile not found' }, 404);
         }
 

@@ -44,12 +44,13 @@ export function unpack(bytes: Uint8Array): UnpackedData {
     return bytes[offset++];
   }
 
-  function readString(_maxLen?: number): string {
+  function readString(maxLen?: number): string {
     const len = readByte();
     if (len === null || len === 0) return '';
     const bytes = readBytes(len);
     if (!bytes) return '';
-    return new TextDecoder().decode(new Uint8Array(bytes)).trim();
+    const decoded = new TextDecoder().decode(new Uint8Array(bytes)).trim();
+    return maxLen ? decoded.slice(0, maxLen) : decoded;
   }
 
   function readBytes(n: number): number[] | null {

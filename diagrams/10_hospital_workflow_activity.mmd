@@ -1,0 +1,18 @@
+graph TD
+    Start([ER Trauma Patient Influx]) --> CheckQR{Does Patient Have PRANA QR?}
+    
+    CheckQR -- Yes --> ScanQR[ER Staff Scans QR via Hospital Desk Scanner]
+    ScanQR --> QueryAPI[POST /api/emergency/hospital-access with Staff JWT]
+    QueryAPI --> LogAudit[Insert into emergency_access_logs]
+    LogAudit --> RenderDossier[Display Immediate Trauma Dossier: Blood Group & Allergies]
+    
+    CheckQR -- No --> SearchPID[Search by Phone Number / National ID / Name]
+    SearchPID --> VerifyConsent{Emergency Override or Patient OTP?}
+    VerifyConsent -- OTP Verified --> GrantAccess[Display Comprehensive Longitudinal EHR]
+    VerifyConsent -- Trauma Override --> LogOverride[Log Critical Emergency Override Reason]
+    LogOverride --> GrantAccess
+    
+    RenderDossier --> TriageAction[Doctor Initiates Resuscitation / Transfusion]
+    GrantAccess --> UpdateEHR[Hospital Doctor Enters Clinical Encounter Notes]
+    UpdateEHR --> SyncDB[POST /api/hospital/encounters - Write to Database]
+    SyncDB --> End([Patient Stabilized & Admitted])

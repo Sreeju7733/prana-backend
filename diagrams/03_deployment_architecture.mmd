@@ -1,0 +1,43 @@
+graph TD
+    subgraph ClientDevices["Client Hardware & Runtimes"]
+        Android1["Android Mobile Phone<br/>(Patient App APK)"]
+        Android2["Rugged EMT Tablet / Phone<br/>(Responder App APK)"]
+        BrowserDoctor["Hospital Workstation Browser<br/>(Chrome / Firefox / Safari)"]
+        BrowserAdmin["Admin Browser Workstation<br/>(Chrome / Firefox / Edge)"]
+    end
+
+    subgraph CloudflareNetwork["Edge & DNS (Cloudflare CDN / WAF)"]
+        CF_DNS["DNS & Anycast Edge Routing"]
+        CF_SSL["Automated TLS 1.3 Termination"]
+        CF_WAF["DDoS Mitigation & Rate Limiting"]
+    end
+
+    subgraph VercelNextCloud["Application Compute (Vercel / Node.js Engine)"]
+        NodeCluster["Next.js 16.2.12 Serverless / Node Runtime"]
+        NextAuth["Iron-Session / JWT Session Manager"]
+        NextRoutes["Server-Side API Routes & Server Actions"]
+    end
+
+    subgraph SupabaseInfrastructure["Managed Database Tier (Supabase AWS)"]
+        PgBouncer["PgBouncer Transaction Connection Pooler"]
+        PostgresDB[("PostgreSQL 15 Managed Cluster<br/>(Row Level Security Enabled)")]
+    end
+
+    subgraph ExternalSaaS["External Cloud Infrastructure"]
+        CloudflareR2[("Cloudflare R2 Object Store<br/>S3-Compatible Document Storage")]
+        GeminiAPI["Google Generative AI Cloud<br/>Gemini 2.0 Flash Vision")]
+        SMS_GW["Fast2SMS Production SMS Gateway")]
+    end
+
+    Android1 -->|HTTPS / TLS 1.3| CF_DNS
+    Android2 -->|HTTPS / TLS 1.3| CF_DNS
+    BrowserDoctor -->|HTTPS / TLS 1.3| CF_DNS
+    BrowserAdmin -->|HTTPS / TLS 1.3| CF_DNS
+
+    CF_DNS --> CF_SSL --> CF_WAF --> NodeCluster
+    NodeCluster --> NextAuth --> NextRoutes
+
+    NextRoutes -->|Port 6543 / SSL Pool| PgBouncer --> PostgresDB
+    NextRoutes -->|HTTPS AWS4-HMAC-SHA256| CloudflareR2
+    NextRoutes -->|HTTPS gRPC/REST| GeminiAPI
+    NextRoutes -->|HTTPS REST| SMS_GW

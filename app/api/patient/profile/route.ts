@@ -46,18 +46,7 @@ export async function GET(req: NextRequest) {
                 profile = p;
                 userId = typeof p.id === 'string' ? p.id : null;
             } else {
-                // Fallback to latest registered active profile if PRANA ID format differs
-                const { data: latestProfiles } = await supabase
-                    .from('profiles')
-                    .select('*')
-                    .order('created_at', { ascending: false })
-                    .limit(1);
-
-                if (latestProfiles && latestProfiles.length > 0) {
-                    const p = latestProfiles[0];
-                    profile = p;
-                    userId = typeof p.id === 'string' ? p.id : null;
-                }
+                return NextResponse.json({ error: 'Patient profile not found' }, { status: 404 });
             }
         } else {
             // Verify user via JWT token
@@ -155,19 +144,10 @@ export async function PUT(req: NextRequest) {
             filteredUpdates.height_cm = val;
         }
 
-        let targetId = user.id;
-        const { data: userProfile } = await supabase.from('profiles').select('id').eq('id', user.id).single();
-        if (!userProfile) {
-            const { data: latest } = await supabase.from('profiles').select('id').order('created_at', { ascending: false }).limit(1);
-            if (latest && latest.length > 0) {
-                targetId = latest[0].id;
-            }
-        }
-
         const { data: profile, error } = await supabase
             .from('profiles')
             .update(filteredUpdates)
-            .eq('id', targetId)
+            .eq('id', user.id)
             .select()
             .single();
 
@@ -183,8 +163,8 @@ export async function PUT(req: NextRequest) {
             height_cm: profile.height_cm ?? profile.height,
         } : null;
 
-        invalidateCache(`patient_profile_${targetId}`);
-        invalidateCache(`dashboard_${targetId}`);
+        invalidateCache(`patient_profile_${user.id}`);
+        invalidateCache(`dashboard_${user.id}`);
 
         return NextResponse.json({ success: true, data: normalizedProfile, profile: normalizedProfile });
 

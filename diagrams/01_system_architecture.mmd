@@ -1,0 +1,52 @@
+graph TB
+subgraph Clients["Presentation Layer (Clients & Portals)"]
+    PA["1. PRANA Patient App<br/>(Flutter / Android / Drift)"]
+    RA["2. PRANA Responder App<br/>(Flutter / Android / Cache)"]
+    HP["3. Hospital Portal<br/>(Next.js 16 / React 19 / Tailwind)"]
+    SA["4. Super Admin Portal<br/>(Next.js 16 / React 19 / Glassmorphism)"]
+end
+
+subgraph Edge["Edge & Routing Layer"]
+    CF["Cloudflare Edge Network / Reverse Proxy"]
+    WAF["Web Application Firewall & SSL/TLS"]
+end
+
+subgraph Backend["Application & Compute Layer (Next.js 16 Engine)"]
+    MW["Edge Middleware<br/>(Session & JWT Auth)"]
+    subgraph API_Routes["API Endpoints & Controllers"]
+        AuthAPI["/api/auth/*<br/>(Session & Role Management)"]
+        EmgAPI["/api/emergency/*<br/>(QR Lookup, Dispatch SMS)"]
+        MedAPI["/api/medical/*<br/>(Records, Vitals, Conditions)"]
+        DocAPI["/api/documents/*<br/>(R2 Presigned URLs)"]
+        AIAPI["/api/ai/summarize<br/>(Gemini 2.0 Flash Vision)"]
+        HospAPI["/api/hospital/*<br/>(Roster, Patient Lookup)"]
+        AdminAPI["/api/admin/*<br/>(Verification, Audit Logs)"]
+    end
+end
+
+subgraph Security["Cryptographic & AI Services"]
+    QR_Engine["PRANA-QR Engine v1<br/>(Base45 / X25519 / AES-GCM / Ed25519)"]
+    Gemini["Google Gemini 2.0 Flash<br/>(Generative Multimodal OCR & NLP)"]
+    Fast2SMS["Fast2SMS DLT Gateway<br/>(Emergency Trauma SMS Dispatch)"]
+end
+
+subgraph Storage["Persistence & Storage Layer"]
+    SupaPG[("Supabase PostgreSQL 15<br/>- Row Level Security (RLS)<br/>- 18 Relational Tables<br/>- Encrypted Connection Pooling")]
+    R2_Store[("Cloudflare R2 Object Store<br/>- Encrypted Presigned Uploads<br/>- Medical Records & Scans")]
+    Drift_Local[("Patient Device SQLite<br/>- Drift ORM Vault<br/>- SQLCipher Encryption")]
+end
+
+PA -->|HTTPS / REST| CF
+RA -->|HTTPS / REST| CF
+HP -->|HTTPS / REST| CF
+SA -->|HTTPS / REST| CF
+
+CF --> WAF --> MW
+MW --> API_Routes
+
+EmgAPI --> QR_Engine
+EmgAPI --> Fast2SMS
+AIAPI --> Gemini
+DocAPI --> R2_Store
+API_Routes --> SupaPG
+PA -.->|Local Off-Grid IO| Drift_Local

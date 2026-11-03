@@ -69,15 +69,6 @@ export async function POST(req: NextRequest) {
             return NextResponse.json({ error: 'No avatar image or URL provided' }, { status: 400 });
         }
 
-        let targetId = user.id;
-        const { data: userProfile } = await supabase.from('profiles').select('id').eq('id', user.id).single();
-        if (!userProfile) {
-            const { data: latest } = await supabase.from('profiles').select('id').order('created_at', { ascending: false }).limit(1);
-            if (latest && latest.length > 0) {
-                targetId = latest[0].id;
-            }
-        }
-
         // Update profile in Supabase
         const { data: profile, error } = await supabase
             .from('profiles')
@@ -85,7 +76,7 @@ export async function POST(req: NextRequest) {
                 avatar_url: finalUrl,
                 updated_at: new Date().toISOString()
             })
-            .eq('id', targetId)
+            .eq('id', user.id)
             .select()
             .single();
 

@@ -1,0 +1,140 @@
+erDiagram
+    PROFILES ||--o{ ALLERGIES : "has"
+    PROFILES ||--o{ MEDICATIONS : "takes"
+    PROFILES ||--o{ CONDITIONS : "diagnosed_with"
+    PROFILES ||--o{ EMERGENCY_CONTACTS : "notifies"
+    PROFILES ||--o{ MEDICAL_RECORDS : "owns"
+    PROFILES ||--o{ VITALS_LOGS : "records"
+    PROFILES ||--o{ EMERGENCY_ACCESS_LOGS : "audited_in"
+    PROFILES ||--o{ INSURANCE_POLICIES : "holds"
+    PROFILES ||--o{ CONSENT_GRANTS : "consents"
+
+    HOSPITALS ||--o{ HOSPITAL_STAFF : "employs"
+    HOSPITALS ||--o{ EMERGENCY_ACCESS_LOGS : "accesses_via"
+    HOSPITAL_STAFF ||--o{ EMERGENCY_ACCESS_LOGS : "performs_scan"
+
+    PROFILES {
+        uuid id PK
+        text prana_id UK
+        text first_name
+        text last_name
+        date date_of_birth
+        text blood_group
+        text gender
+        text phone
+        text emergency_medical_notes
+        boolean organ_donor
+        text address
+        timestamp created_at
+        timestamp updated_at
+    }
+
+    ALLERGIES {
+        uuid id PK
+        uuid user_id FK
+        text allergen
+        text severity
+        text reaction
+        timestamp created_at
+    }
+
+    MEDICATIONS {
+        uuid id PK
+        uuid user_id FK
+        text medication_name
+        text dosage
+        text frequency
+        date start_date
+        date end_date
+        text prescribing_doctor
+        timestamp created_at
+    }
+
+    CONDITIONS {
+        uuid id PK
+        uuid user_id FK
+        text condition_name
+        text status
+        date diagnosis_date
+        text notes
+        timestamp created_at
+    }
+
+    EMERGENCY_CONTACTS {
+        uuid id PK
+        uuid user_id FK
+        text contact_name
+        text relationship
+        text phone_number
+        boolean is_primary
+        timestamp created_at
+    }
+
+    MEDICAL_RECORDS {
+        uuid id PK
+        uuid user_id FK
+        text record_type
+        text title
+        date record_date
+        text document_url
+        text doctor_notes
+        jsonb ai_summary
+        timestamp created_at
+    }
+
+    VITALS_LOGS {
+        uuid id PK
+        uuid user_id FK
+        numeric systolic_bp
+        numeric diastolic_bp
+        numeric heart_rate
+        numeric blood_glucose
+        numeric oxygen_saturation
+        numeric temperature
+        timestamp logged_at
+    }
+
+    HOSPITALS {
+        uuid id PK
+        text hospital_name
+        text registration_number UK
+        text email UK
+        text phone
+        text address
+        text state
+        text pincode
+        boolean is_active
+        timestamp created_at
+    }
+
+    HOSPITAL_STAFF {
+        uuid id PK
+        uuid hospital_id FK
+        uuid user_id FK
+        text full_name
+        text staff_role
+        text department
+        boolean is_authorized
+        timestamp created_at
+    }
+
+    EMERGENCY_ACCESS_LOGS {
+        uuid id PK
+        uuid patient_id FK
+        uuid scanned_by FK
+        uuid hospital_id FK
+        text scanner_role
+        text location_coordinates
+        text triage_action_taken
+        timestamp access_time
+    }
+
+    INSURANCE_POLICIES {
+        uuid id PK
+        uuid user_id FK
+        text provider_name
+        text policy_number
+        numeric coverage_limit
+        date expiry_date
+        timestamp created_at
+    }

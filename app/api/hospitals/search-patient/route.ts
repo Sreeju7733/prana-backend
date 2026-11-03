@@ -56,17 +56,7 @@ export async function GET(req: NextRequest) {
       return NextResponse.json({ success: false, error: pErr.message }, { status: 500 });
     }
 
-    let profile = profiles?.[0];
-
-    // Fallback to latest active profile if testing
-    if (!profile) {
-      const { data: latest } = await supabase
-        .from('profiles')
-        .select('*')
-        .order('created_at', { ascending: false })
-        .limit(1);
-      profile = latest?.[0];
-    }
+    const profile = profiles?.[0];
 
     if (!profile) {
       return NextResponse.json({

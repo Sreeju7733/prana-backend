@@ -1,0 +1,30 @@
+graph TD
+    subgraph Level0_Processes["PRANA Level 0 Functional Decomposition"]
+        P1(("1.0 Patient Identity &<br/>Profile Management"))
+        P2(("2.0 Emergency QR Encrypt<br/>& Triage Dispatch"))
+        P3(("3.0 AI Medical Document<br/>Ingestion & Parsing"))
+        P4(("4.0 Hospital Roster &<br/>Super Admin Governance"))
+    end
+
+    subgraph DataStores["Platform Data Vaults"]
+        D1[("D1: Patient Profiles & Clinical DB")]
+        D2[("D2: Emergency Access Audit Trail")]
+        D3[("D3: Verified Institutional Roster")]
+        D4[("D4: Cloudflare R2 Document Store")]
+    end
+
+    User([Citizen Patient]) -->|Form Data & Biometrics| P1
+    P1 <-->|Read / Write Profiles| D1
+    P1 -->|Generate Identity & Keys| P2
+
+    Responder([Paramedic / EMT]) -->|Scan QR Token| P2
+    P2 <-->|Fetch Clinical Triage Data| D1
+    P2 -->|Log Emergency Scan Event| D2
+
+    User -->|Upload Rx Image / Lab Scan| P3
+    P3 -->|Store Binary Scan| D4
+    P3 -->|Write Structured Extracted JSON| D1
+
+    Admin([Super Administrator / Hospital Desk]) -->|Institutional Approvals & Audit Queries| P4
+    P4 <-->|Query Access Logs| D2
+    P4 <-->|Verify Hospitals & Responders| D3

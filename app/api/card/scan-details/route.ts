@@ -29,13 +29,7 @@ export async function GET(req: NextRequest) {
             .select('*')
             .or(`prana_id.ilike.%${cleanId}%,id.eq.${cleanId}`);
 
-        let profile = profiles?.[0];
-
-        // Fallback to latest registered active profile if exact prana_id match fails
-        if (!profile) {
-            const { data: latest } = await supabase.from('profiles').select('*').order('created_at', { ascending: false }).limit(1);
-            profile = latest?.[0];
-        }
+        const profile = profiles?.[0];
 
         if (!profile) {
             return NextResponse.json({ error: 'Patient profile not found' }, { status: 404 });

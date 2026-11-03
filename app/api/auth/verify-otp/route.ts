@@ -57,6 +57,7 @@ export async function POST(req: NextRequest) {
         let isNewUser = false;
         const last10 = cleanPhone.replace(/\D/g, '').slice(-10);
 
+        // Search strictly for the user's phone number
         const { data: phoneProfiles } = await supabase
             .from('profiles')
             .select('*')
@@ -64,19 +65,6 @@ export async function POST(req: NextRequest) {
             .limit(1);
 
         let profile = phoneProfiles && phoneProfiles.length > 0 ? phoneProfiles[0] : null;
-
-        if (!profile) {
-            // Check if there is an existing profile created during setup
-            const { data: latestProfiles } = await supabase
-                .from('profiles')
-                .select('*')
-                .order('created_at', { ascending: false })
-                .limit(1);
-
-            if (latestProfiles && latestProfiles.length > 0 && latestProfiles[0].full_name && latestProfiles[0].full_name.trim() !== '') {
-                profile = latestProfiles[0];
-            }
-        }
 
         if (!profile) {
             // User doesn't exist in profiles table -> create auth user first

@@ -1,0 +1,22 @@
+graph LR
+    subgraph MobileApps["Mobile Tier (Android / Flutter)"]
+        PatientApp["Patient Mobile App<br/>(Profile, Vitals, QR Display)"]
+        ResponderApp["Responder Mobile App<br/>(Camera Scan, Triage, Offline Cache)"]
+    end
+
+    subgraph WebApps["Web Tier (Next.js 16 Fullstack)"]
+        HospitalPortal["Hospital Web Portal<br/>(Doctor Triage, EHR Lookup, Staff)"]
+        SuperAdminPortal["Super Admin Web Portal<br/>(Institutional Oversight, Verification)"]
+    end
+
+    subgraph CorePlatform["PRANA Unified Backend (Next.js & Supabase)"]
+        API["REST API Engine & Edge Middleware"]
+        DB[("PostgreSQL Database & Storage")]
+    end
+
+    PatientApp -->|Sync Profile, Vitals, Docs| API
+    PatientApp -.->|Presents Emergency QR| ResponderApp
+    ResponderApp -->|Verify & Fetch Triage Data| API
+    HospitalPortal -->|Authorized Record Access| API
+    SuperAdminPortal -->|Audit Logs, Hospital Verification| API
+    API <--> DB

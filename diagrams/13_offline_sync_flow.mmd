@@ -1,0 +1,20 @@
+graph TD
+    Start([User Modifies Vitals / Profile]) --> CheckNet{Is Network Connected?<br/>connectivity_plus}
+    
+    CheckNet -- Online --> DirectAPI[Dispatch Immediate HTTPS Request to Cloud Backend]
+    DirectAPI --> ServerAck{Server Responded 200 OK?}
+    ServerAck -- Yes --> UpdateLocalCache[Update Local Drift SQLite Database & Clear Dirty Flag]
+    ServerAck -- No --> MarkDirty[Write to Local SQLite & Set sync_status = 'pending']
+    
+    CheckNet -- Offline --> LocalWrite[Insert into Local Drift DB with sync_status = 'pending']
+    LocalWrite --> NotifyUser[Display 'Saved Locally - Offline Mode' Banner]
+    
+    NotifyUser --> Listener[Network Listener Detects Connection Restored]
+    MarkDirty --> Listener
+    Listener --> QueryQueue[SELECT * FROM records WHERE sync_status = 'pending']
+    QueryQueue --> DispatchBatch[Post Queued Records in Monotonic Timestamp Order]
+    DispatchBatch --> ResolveConflicts{Server Conflict Detected?}
+    ResolveConflicts -- No --> MarkSynced[Update sync_status = 'synced']
+    ResolveConflicts -- Yes --> ClientWins[Client Monotonic Timestamp Resolution Policy]
+    ClientWins --> MarkSynced
+    MarkSynced --> Complete([Offline Synchronization Complete])

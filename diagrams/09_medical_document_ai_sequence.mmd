@@ -1,0 +1,26 @@
+sequenceDiagram
+    autonumber
+    actor Patient as Citizen Patient / Doctor
+    participant App as PRANA Patient App
+    participant API as PRANA Document Service
+    participant R2 as Cloudflare R2 Object Storage
+    participant Gemini as Google Gemini 2.0 Flash Vision
+    participant DB as Supabase PostgreSQL
+
+    Patient->>App: Select Prescription Photo / Lab PDF from Device
+    App->>API: POST /api/documents/upload-intent (filename, file_size, mime_type)
+    API-->>App: Presigned S3-Compatible Upload URL
+    App->>R2: Direct Binary PUT (Presigned Upload to R2 Bucket)
+    R2-->>App: HTTP 200 OK (Object Stored)
+    
+    App->>API: POST /api/ai/summarize (document_url, mime_type)
+    API->>R2: Fetch Document Stream
+    R2-->>API: Return Image/PDF Buffer
+    API->>API: Base64 Encode Buffer & Build Clinical Extraction Prompt
+    API->>Gemini: POST generateContent (Multimodal Vision Prompt)
+    Gemini-->>API: Returns Structured JSON (Diagnoses, Rx List, Vitals, Key Warning)
+    
+    API->>DB: INSERT into medical_records (user_id, document_url, ai_summary, title)
+    DB-->>API: Record ID & Timestamp
+    API-->>App: Summarization Completed (JSON Payload)
+    App-->>Patient: Render Interactive Card with Extracted Medications & Dosages

@@ -1,0 +1,35 @@
+graph TD
+    subgraph ExternalEntities["External Actors & Systems"]
+        Patient["Citizen Patient<br/>(Mobile User)"]
+        Bystander["Good Samaritan Bystander<br/>(Anonymous Scanner)"]
+        Paramedic["Paramedic / EMT<br/>(Certified First Responder)"]
+        Clinician["Hospital ER Physician / Staff<br/>(Authorized Clinician)"]
+        SuperAdmin["Super Administrator<br/>(Platform Governance)"]
+        GeminiAPI["Google Gemini 2.0 Flash<br/>(Generative AI Service)"]
+        SMS_DLT["Fast2SMS Gateway<br/>(Telecom SMS Service)"]
+    end
+
+    subgraph Boundary["PRANA Platform Context Boundary (System 0)"]
+        PRANA_SYS(("PRANA Emergency Medical<br/>& Health Record Platform"))
+    end
+
+    Patient -->|Demographics, Chronic Conditions, Uploads| PRANA_SYS
+    PRANA_SYS -->|Cryptographic QR, AI Summaries, Vitals Graphs| Patient
+
+    Bystander -->|Scans QR Code via Mobile Camera| PRANA_SYS
+    PRANA_SYS -->|Public First-Aid Instructions, Blood Group, Call Contact| Bystander
+
+    Paramedic -->|Scans QR Token with Auth Credentials| PRANA_SYS
+    PRANA_SYS -->|Full Emergency Medical Dossier (Allergies, Meds, Notes)| Paramedic
+
+    Clinician -->|Hospital Portal Login, Patient Lookup, Triage Action| PRANA_SYS
+    PRANA_SYS -->|Complete Longitudinal Health Record & Document Viewer| Clinician
+
+    SuperAdmin -->|Institutional Credentials, Verifications| PRANA_SYS
+    PRANA_SYS -->|Audit Logs, Global Metrics, Hospital Approvals| SuperAdmin
+
+    PRANA_SYS -->|Multimodal Document Streams & Clinical Prompts| GeminiAPI
+    GeminiAPI -->|Structured JSON Extraction & Medical Summary| PRANA_SYS
+
+    PRANA_SYS -->|Emergency Dispatch SMS Notifications| SMS_DLT
+    SMS_DLT -->|SMS Alerts Delivered to Family Cell Phones| Patient

@@ -1,0 +1,27 @@
+sequenceDiagram
+    autonumber
+    actor Patient as Citizen Patient
+    participant App as PRANA Patient App (Flutter)
+    participant LocalDB as Local Drift (SQLite/SQLCipher)
+    participant API as PRANA Backend API
+    participant SupaDB as Supabase Database (PostgreSQL)
+
+    Patient->>App: Launch App & Enter Phone Number / Email
+    App->>API: POST /api/auth/register (Credentials & Basic Info)
+    API->>SupaDB: Insert into auth.users & create public.profiles record
+    SupaDB-->>API: User ID & Session Token
+    API-->>App: Registration Success (JWT Session Token)
+    App->>LocalDB: Initialize Local Drift Database & Cache User ID
+    
+    Patient->>App: Input Demographics (DOB, Blood Group, Address)
+    Patient->>App: Add Allergies, Chronic Conditions, Medications
+    Patient->>App: Add Emergency Contacts (Name, Relation, Phone)
+    
+    App->>LocalDB: Store Records in Local SQLite Vault
+    App->>API: PUT /api/user/profile & POST /api/medical/*
+    API->>SupaDB: Transactional Write across Profiles, Allergies, Meds, Contacts
+    SupaDB-->>API: Transaction Committed
+    API-->>App: Sync Confirmation & Unique PRANA ID (PID-XXXXXX)
+    
+    App->>App: Compute QR Payload (Codebook Dictionary + X25519)
+    App-->>Patient: Display Dynamic Emergency QR Badge on Screen

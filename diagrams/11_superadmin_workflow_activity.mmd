@@ -1,0 +1,26 @@
+graph TD
+    Start([Super Admin Authenticates]) --> Dashboard[Access Super Admin Portal Dashboard]
+    Dashboard --> SelectModule{Select Governance Action}
+    
+    SelectModule -- Hospital Verification --> ReviewHosp[Inspect Pending Hospital Registration]
+    ReviewHosp --> VerifyLicense[Cross-Reference State Clinical Establishment License]
+    VerifyLicense --> HospDecision{Approve Facility?}
+    HospDecision -- Yes --> ActivateHosp[Set is_active = true on verified_hospitals]
+    HospDecision -- No --> RejectHosp[Mark Registration Rejected & Dispatch Reason]
+    
+    SelectModule -- Paramedic Oversight --> ReviewParamedic[Inspect Responder Credentials & Station]
+    ReviewParamedic --> RespDecision{Authorize Responder?}
+    RespDecision -- Yes --> IssueToken[Grant High-Trust EMT Scan Authorization]
+    RespDecision -- No --> RevokeToken[Revoke Scanner Privileges]
+    
+    SelectModule -- Audit Log Inspection --> QueryLogs[Filter emergency_access_logs by Timestamp & Hospital]
+    QueryLogs --> FlagAbuse{Unusual Access Spike or Night-Scan?}
+    FlagAbuse -- Yes --> TriggerInvestigation[Suspend Staff Access & Request Inquiry]
+    FlagAbuse -- No --> ArchiveReport[Generate Compliance Audit Export]
+    
+    ActivateHosp --> End([Action Committed])
+    RejectHosp --> End
+    IssueToken --> End
+    RevokeToken --> End
+    TriggerInvestigation --> End
+    ArchiveReport --> End
