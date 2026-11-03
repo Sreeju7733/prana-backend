@@ -66,12 +66,52 @@ export async function GET(req: NextRequest) {
             );
         };
 
+        // Determine caller context from headers or token
+        const authHeader = req.headers.get('authorization');
+        let callerResponderCode = req.headers.get('x-responder-code') || null;
+        let callerHospitalId = req.headers.get('x-hospital-id') || null;
+
+        if (authHeader && authHeader.startsWith('Bearer ')) {
+            try {
+                const token = authHeader.split(' ')[1];
+                const jwtSecret = process.env.JWT_SECRET || 'your-secret-key';
+                const decoded = (await import('jsonwebtoken')).default.verify(token, jwtSecret) as {
+                    responder_code?: string;
+                    organization?: string;
+                    hospital_id?: string;
+                };
+                if (decoded.responder_code) callerResponderCode = decoded.responder_code;
+                if (decoded.organization) callerHospitalId = decoded.organization;
+                if (decoded.hospital_id) callerHospitalId = decoded.hospital_id;
+            } catch {
+                // Ignore token verification failure for public fallback
+            }
+        }
+
+        // If responder is associated with a hospital, ensure hospital_id is populated
+        if (callerResponderCode && !callerHospitalId) {
+            try {
+                const { data: respData } = await supabase
+                    .from('verified_responders')
+                    .select('organization')
+                    .eq('responder_code', callerResponderCode)
+                    .maybeSingle();
+                if (respData?.organization) {
+                    callerHospitalId = respData.organization;
+                }
+            } catch {
+                // Fallback gracefully
+            }
+        }
+
         // Automatically log this scan event into scan_logs table
         try {
             await supabase.from('scan_logs').insert([{
                 prana_id: profile.prana_id || cleanId,
-                access_tier: 'green',
-                device_type: 'Public Emergency Web Scanner',
+                access_tier: callerResponderCode ? 'yellow' : 'green',
+                responder_code: callerResponderCode,
+                hospital_id: callerHospitalId,
+                device_type: callerResponderCode ? 'Paramedic PWA Scanner' : 'Public Emergency Web Scanner',
                 access_granted: true,
                 scanned_at: new Date().toISOString()
             }]);

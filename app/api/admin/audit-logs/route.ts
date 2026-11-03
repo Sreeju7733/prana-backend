@@ -24,6 +24,7 @@ export async function GET(req: NextRequest) {
     const pranaId = searchParams.get('prana_id');
     const hospitalId = !isSuperAdmin && hospitalClaims?.hospital_id ? hospitalClaims.hospital_id : searchParams.get('hospital_id');
     const tier = searchParams.get('tier');
+    const responderCode = searchParams.get('responder_code');
 
     let query = supabase
       .from('scan_logs')
@@ -31,8 +32,13 @@ export async function GET(req: NextRequest) {
       .order('scanned_at', { ascending: false })
       .limit(limit);
 
+    // If hospital caller, strictly isolate scans to their own hospital_id
     if (hospitalId) {
       query = query.eq('hospital_id', hospitalId);
+    }
+
+    if (responderCode) {
+      query = query.or(`responder_code.eq.${responderCode.trim()},responder_id.eq.${responderCode.trim()}`);
     }
 
     if (tier) {

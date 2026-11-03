@@ -527,7 +527,8 @@ export default function HospitalEHRDashboard() {
   const handleViewParamedicScans = async (paramedic: Paramedic) => {
     try {
       const token = getAuthToken();
-      const res = await fetch(`/api/admin/audit-logs?limit=25`, {
+      const currentHospId = hospitalSession.hospital_id;
+      const res = await fetch(`/api/admin/audit-logs?limit=50&hospital_id=${encodeURIComponent(currentHospId)}&responder_code=${encodeURIComponent(paramedic.responder_code)}`, {
         headers: {
           Authorization: `Bearer ${token}`,
         },
@@ -536,11 +537,7 @@ export default function HospitalEHRDashboard() {
       if (data.success) {
         setSelectedParamedicScans({
           paramedic,
-          logs: (data.data as AuditLogEntry[]).filter(
-            l => l.responder_org?.toLowerCase().includes(paramedic.name.toLowerCase()) ||
-                 l.responder_org?.toLowerCase().includes(paramedic.responder_code.toLowerCase()) ||
-                 l.hospital_id === hospitalSession.hospital_id
-          )
+          logs: data.data as AuditLogEntry[]
         });
       }
     } catch {

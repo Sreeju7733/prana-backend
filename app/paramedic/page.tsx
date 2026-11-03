@@ -118,7 +118,10 @@ export default function ParamedicAppWhite() {
 
       setSession(data.responder);
       localStorage.setItem("prana_paramedic_app_session", JSON.stringify(data.responder));
-      fetchEmergencyRecord(pranaInput);
+      if (data.token) {
+        localStorage.setItem("prana_paramedic_token", data.token);
+      }
+      fetchEmergencyRecord(pranaInput, data.responder, data.token);
     } catch (err: unknown) {
       setAuthError(err instanceof Error ? err.message : "Badge authentication failed");
     } finally {
@@ -126,13 +129,29 @@ export default function ParamedicAppWhite() {
     }
   };
 
-  const fetchEmergencyRecord = async (pid: string) => {
+  const fetchEmergencyRecord = async (pid: string, activeSession?: ParamedicSession | null, tokenOverride?: string) => {
     if (!pid.trim()) return;
     setIsFetching(true);
     setErrorMsg(null);
 
+    const currentSession = activeSession !== undefined ? activeSession : session;
+    const token = tokenOverride || localStorage.getItem("prana_paramedic_token") || "";
+
     try {
-      const res = await fetch(`/api/card/scan-details?pid=${encodeURIComponent(pid.trim())}`);
+      const headers: Record<string, string> = {};
+      if (token) {
+        headers["Authorization"] = `Bearer ${token}`;
+      }
+      if (currentSession?.responder_code) {
+        headers["x-responder-code"] = currentSession.responder_code;
+      }
+      if (currentSession?.organization) {
+        headers["x-hospital-id"] = currentSession.organization;
+      }
+
+      const res = await fetch(`/api/card/scan-details?pid=${encodeURIComponent(pid.trim())}`, {
+        headers
+      });
       const data = await res.json();
 
       if (!res.ok || !data.patient) {

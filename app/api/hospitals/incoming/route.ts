@@ -65,12 +65,15 @@ export async function GET(req: NextRequest) {
 
     // Filter by destination hospital
     const matched = mockTransits.filter(t => 
-      !hospId || t.destination_hospital_id.toLowerCase().includes(hospId.toLowerCase()) || hospId.includes(t.destination_hospital_id)
+      hospId && (
+        t.destination_hospital_id.toLowerCase().includes(hospId.toLowerCase()) || 
+        hospId.toLowerCase().includes(t.destination_hospital_id.toLowerCase())
+      )
     );
 
     return NextResponse.json({
       success: true,
-      data: matched.length > 0 ? matched : mockTransits
+      data: matched
     }, { status: 200 });
 
   } catch (err: unknown) {
