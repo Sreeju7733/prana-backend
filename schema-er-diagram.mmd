@@ -1,0 +1,256 @@
+erDiagram
+    %% Core User & Auth
+    AUTH_USERS ||--|| PROFILES : "identifies (1:1)"
+    PROFILES ||--o{ ALLERGIES : "has"
+    PROFILES ||--o{ MEDICATIONS : "prescribed"
+    PROFILES ||--o{ CONDITIONS : "diagnosed"
+    PROFILES ||--o{ EMERGENCY_CONTACTS : "notifies"
+    PROFILES ||--o{ SURGERIES : "underwent"
+    PROFILES ||--o{ DEVICES : "implanted"
+    PROFILES ||--o{ VITALS : "records"
+    PROFILES ||--o{ INSURANCE_POLICIES : "covered_by"
+    PROFILES ||--o{ MEDICAL_BRIEFINGS : "generates"
+    PROFILES ||--o{ AI_SUMMARIES : "summarizes"
+    PROFILES ||--o{ PRINTED_CARDS : "issues"
+    PROFILES ||--o{ SCAN_LOGS : "logs_access_to (prana_id)"
+
+    %% Hospital & Responder Infrastructure
+    VERIFIED_HOSPITALS ||--o{ HOSPITAL_STAFF : "employs"
+    VERIFIED_HOSPITALS ||--o{ SCAN_LOGS : "originates_scan"
+    VERIFIED_RESPONDERS ||--o{ SCAN_LOGS : "performs_field_scan"
+
+    AUTH_USERS {
+        uuid id PK
+        string email
+        string phone
+        timestamp created_at
+    }
+
+    PROFILES {
+        uuid id PK, FK "auth.users(id)"
+        string phone UK
+        string prana_id UK
+        string full_name
+        date date_of_birth
+        string blood_group
+        string gender
+        numeric weight_kg
+        numeric height_cm
+        string avatar_url
+        string card_status
+        boolean pregnancy_status
+        boolean dnr_directive
+        boolean revoked
+        timestamp suspended_at
+        string_array flags
+        string notes
+        string emergency_relay_number
+        integer daily_scan_limit
+        string_array allowed_countries
+        time active_hours_start
+        time active_hours_end
+        timestamp created_at
+        timestamp updated_at
+    }
+
+    ALLERGIES {
+        uuid id PK
+        uuid client_uuid
+        uuid user_id FK "profiles(id)"
+        string allergen
+        string severity
+        string reaction_description
+        date date_diagnosed
+        boolean is_critical
+        timestamp created_at
+        timestamp updated_at
+    }
+
+    MEDICATIONS {
+        uuid id PK
+        uuid client_uuid
+        uuid user_id FK "profiles(id)"
+        string name
+        string generic_name
+        string dose
+        string dose_value
+        string dose_unit
+        string frequency
+        string reason
+        string prescribed_by
+        date prescribed_date
+        boolean is_active
+        string encrypted_prescription_url
+        timestamp created_at
+        timestamp updated_at
+    }
+
+    CONDITIONS {
+        uuid id PK
+        uuid client_uuid
+        uuid user_id FK "profiles(id)"
+        string name
+        string icd10_code
+        date diagnosed_date
+        string status
+        string treating_doctor
+        string hospital
+        string notes
+        timestamp created_at
+        timestamp updated_at
+    }
+
+    EMERGENCY_CONTACTS {
+        uuid id PK
+        uuid client_uuid
+        uuid user_id FK "profiles(id)"
+        string name
+        string relationship
+        string phone_hash
+        string encrypted_phone
+        boolean is_primary
+        string_array notification_channels
+        timestamp created_at
+    }
+
+    SURGERIES {
+        uuid id PK
+        uuid user_id FK "profiles(id)"
+        string procedure_name
+        date date_performed
+        string hospital
+        string surgeon
+        string complications_notes
+        timestamp created_at
+        timestamp updated_at
+    }
+
+    DEVICES {
+        uuid id PK
+        uuid user_id FK "profiles(id)"
+        string device_name
+        string model_manufacturer
+        date implant_date
+        string location_on_body
+        string notes
+        timestamp created_at
+        timestamp updated_at
+    }
+
+    VITALS {
+        uuid id PK
+        uuid user_id FK "profiles(id)"
+        string vital_type
+        decimal value
+        string unit
+        timestamp recorded_at
+        string source
+        timestamp created_at
+    }
+
+    INSURANCE_POLICIES {
+        uuid id PK
+        uuid user_id FK "profiles(id)"
+        string provider_name
+        string policy_number
+        string group_number
+        string helpline_phone
+        string coverage_type
+        timestamp created_at
+        timestamp updated_at
+    }
+
+    MEDICAL_BRIEFINGS {
+        uuid id PK
+        uuid user_id FK "profiles(id)"
+        string green_briefing
+        string yellow_briefing
+        string red_briefing
+        string encrypted_red_briefing
+        string generated_by
+        timestamp expires_at
+        timestamp created_at
+    }
+
+    AI_SUMMARIES {
+        uuid id PK
+        uuid user_id FK "profiles(id)"
+        string report_url
+        jsonb summary
+        timestamp created_at
+    }
+
+    PRINTED_CARDS {
+        uuid id PK
+        uuid user_id FK "profiles(id)"
+        string fingerprint
+        boolean is_current
+        timestamp printed_at
+    }
+
+    SCAN_LOGS {
+        uuid id PK
+        string prana_id FK "profiles(prana_id)"
+        inet scanned_by_ip
+        string access_tier
+        string responder_code FK "verified_responders(responder_code)"
+        string hospital_id FK "verified_hospitals(hospital_id)"
+        string doctor_id
+        boolean access_granted
+        string denial_reason
+        string device_type
+        decimal location_lat
+        decimal location_lng
+        timestamp scanned_at
+    }
+
+    VERIFIED_HOSPITALS {
+        uuid id PK
+        string hospital_id UK
+        string name
+        string registration_number UK
+        string city
+        string state
+        string country
+        boolean is_active
+        timestamp verified_at
+        timestamp created_at
+    }
+
+    HOSPITAL_STAFF {
+        uuid id PK
+        uuid hospital_id FK "verified_hospitals(id)"
+        string doctor_id UK
+        string name
+        string nmc_number
+        string specialty
+        string phone
+        boolean is_active
+        timestamp created_at
+    }
+
+    VERIFIED_RESPONDERS {
+        uuid id PK
+        string responder_code UK
+        string employee_id
+        string name
+        string phone
+        string organization
+        string organization_type
+        boolean is_active
+        timestamp expires_at
+        timestamp last_verified_at
+        timestamp created_at
+    }
+
+    OTP_LOGS {
+        uuid id PK
+        string phone
+        string otp_code
+        boolean is_used
+        string ip_address
+        string user_agent
+        timestamp expires_at
+        timestamp created_at
+    }
+
