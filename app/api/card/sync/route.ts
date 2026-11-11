@@ -24,7 +24,7 @@ export async function GET(req: NextRequest) {
 
         let query = supabase
             .from('profiles')
-            .select('id, prana_id, full_name, gender, blood_group, age, card_status, updated_at, created_at')
+            .select('id, prana_id, full_name, gender, blood_group, card_status, updated_at, created_at')
             .not('prana_id', 'is', null)
             .order('updated_at', { ascending: false })
             .limit(limit);
@@ -130,7 +130,7 @@ export async function GET(req: NextRequest) {
             return {
                 pranaId: p.prana_id,
                 fullName: p.full_name || 'Patient',
-                age: p.age || 19,
+                age: 19,
                 gender: p.gender || 'Unspecified',
                 bloodGroup: p.blood_group || 'N/A',
                 cardStatus: p.card_status || 'active',

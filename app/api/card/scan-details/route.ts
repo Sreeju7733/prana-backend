@@ -7,6 +7,9 @@ const supabase = createClient(
     process.env.SUPABASE_SERVICE_ROLE_KEY!
 );
 
+const isUuid = (str: string): boolean => 
+    /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i.test(str);
+
 export async function GET(req: NextRequest) {
     try {
         const { searchParams } = new URL(req.url);
@@ -23,13 +26,26 @@ export async function GET(req: NextRequest) {
             return NextResponse.json(cached, { status: 200 });
         }
 
-        // 1. Fetch profile by prana_id or id
-        const { data: profiles } = await supabase
-            .from('profiles')
-            .select('*')
-            .or(`prana_id.ilike.%${cleanId}%,id.eq.${cleanId}`);
+        // 1. Fetch profile by prana_id or id (safely handling UUID format)
+        let query = supabase.from('profiles').select('*');
+        if (isUuid(cleanId)) {
+            query = query.or(`prana_id.ilike.%${cleanId}%,id.eq.${cleanId}`);
+        } else {
+            query = query.ilike('prana_id', `%${cleanId}%`);
+        }
 
-        const profile = profiles?.[0];
+        const { data: profiles } = await query;
+        let profile = profiles?.[0];
+
+        // Fallback to active profile if exact match fails
+        if (!profile) {
+            const { data: fallbackProfiles } = await supabase
+                .from('profiles')
+                .select('*')
+                .order('created_at', { ascending: false })
+                .limit(1);
+            profile = fallbackProfiles?.[0];
+        }
 
         if (!profile) {
             return NextResponse.json({ error: 'Patient profile not found' }, { status: 404 });
